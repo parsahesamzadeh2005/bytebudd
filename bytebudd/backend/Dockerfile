@@ -3,15 +3,15 @@ FROM python:3.12-slim AS base
 
 WORKDIR /app
 
-# Proxy env vars for apt and pip (host network, so 127.0.0.1 is reachable)
-ENV http_proxy=http://127.0.0.1:2080
-ENV https_proxy=http://127.0.0.1:2080
-ENV HTTP_PROXY=http://127.0.0.1:2080
-ENV HTTPS_PROXY=http://127.0.0.1:2080
+# Proxy for apt and pip (host proxy reachable via Docker bridge at 172.17.0.1:2080)
+ENV http_proxy=http://172.17.0.1:2080
+ENV https_proxy=http://172.17.0.1:2080
+ENV HTTP_PROXY=http://172.17.0.1:2080
+ENV HTTPS_PROXY=http://172.17.0.1:2080
 
 # Install system dependencies
-RUN echo 'Acquire::http::Proxy "http://127.0.0.1:2080";' > /etc/apt/apt.conf.d/01proxy && \
-    echo 'Acquire::https::Proxy "http://127.0.0.1:2080";' >> /etc/apt/apt.conf.d/01proxy && \
+RUN echo 'Acquire::http::Proxy "http://172.17.0.1:2080";' > /etc/apt/apt.conf.d/01proxy && \
+    echo 'Acquire::https::Proxy "http://172.17.0.1:2080";' >> /etc/apt/apt.conf.d/01proxy && \
     apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     libpq-dev \
@@ -24,7 +24,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Clear proxy env vars so they don't leak into runtime
+# Clear proxy so it doesn't leak into runtime
 ENV http_proxy=
 ENV https_proxy=
 ENV HTTP_PROXY=

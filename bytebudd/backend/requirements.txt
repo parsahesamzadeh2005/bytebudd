@@ -8,7 +8,6 @@ alembic==1.14.0
 asyncpg==0.30.0
 aiomysql==0.2.0
 aiosqlite==0.20.0
-psycopg2-binary==2.9.10
 
 # Authentication
 python-jose[cryptography]==3.3.0

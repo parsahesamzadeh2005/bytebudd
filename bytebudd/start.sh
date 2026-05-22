@@ -131,7 +131,7 @@ if $INIT; then
   echo -e "${GREEN}        ✓ Migrations applied${RESET}"
 
   echo "      → Creating admin user..."
-  docker compose exec -T backend python create_admin.py
+  docker compose exec -T backend python scripts/create_admin.py
   echo -e "${GREEN}        ✓ Admin user ready${RESET}"
 
   echo ""

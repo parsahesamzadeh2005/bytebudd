@@ -132,16 +132,6 @@ export const conversationApi = {
 
 // ── Query API (SSE streaming) ─────────────────────────────────────────────
 
-export function createQueryStream(
-  question: string,
-  conversationId: number,
-  dbConnectionId: number
-): EventSource {
-  // We use fetch for the POST, then consume as SSE manually
-  // This function returns a helper that uses fetch + ReadableStream
-  throw new Error("Use streamQuery() instead");
-}
-
 export async function streamQuery(
   question: string,
   conversationId: number,

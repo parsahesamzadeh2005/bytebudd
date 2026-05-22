@@ -20,13 +20,14 @@ echo "      ✓ Migrations complete"
 
 # Create admin user
 echo "[3/4] Creating admin user..."
-docker compose exec backend python /app/../scripts/create_admin.py
+docker compose exec backend python scripts/create_admin.py
 echo "      ✓ Admin user ready"
 
 # Pull Ollama model
-echo "[4/4] Pulling AI model (this may take a while)..."
-docker compose exec ollama ollama pull qwen2.5-coder:8b
-echo "      ✓ Model downloaded"
+echo "[4/4] Pulling AI model..."
+echo "      Ollama is external — make sure '${OLLAMA_MODEL:-qwen2.5-coder:8b}' is pulled on your Ollama host."
+echo "      Run on your Ollama machine:  ollama pull ${OLLAMA_MODEL:-qwen2.5-coder:8b}"
+echo "      ✓ Skipped (external Ollama)"
 
 echo ""
 echo "======================================"

@@ -84,56 +84,6 @@ class OllamaClient:
         except Exception as e:
             raise OllamaError(f"Ollama connection error: {e}")
 
-    async def generate_stream(self, prompt: str) -> AsyncIterator[str]:
-        """
-        Stream tokens from Ollama as they are generated.
-
-        Yields:
-            Individual text tokens as strings.
-
-        Raises:
-            OllamaError: On connection failure or timeout.
-        """
-        payload = {
-            "model": self.model,
-            "prompt": prompt,
-            "stream": True,
-            "options": {
-                "temperature": 0.1,
-                "top_p": 0.9,
-                "num_predict": 512,
-            },
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=self.timeout) as client:
-                async with client.stream(
-                    "POST",
-                    f"{self.base_url}/api/generate",
-                    json=payload,
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        try:
-                            chunk = json.loads(line)
-                            token = chunk.get("response", "")
-                            if token:
-                                yield token
-                            if chunk.get("done"):
-                                break
-                        except json.JSONDecodeError:
-                            logger.warning(f"Ollama non-JSON chunk: {line}")
-                            continue
-
-        except httpx.TimeoutException:
-            raise OllamaError(f"Ollama streaming timed out after {self.timeout}s")
-        except httpx.HTTPStatusError as e:
-            raise OllamaError(f"Ollama HTTP error {e.response.status_code}")
-        except Exception as e:
-            raise OllamaError(f"Ollama streaming error: {e}")
-
     async def pull_model(self) -> AsyncIterator[str]:
         """Pull/download the configured model from Ollama registry."""
         payload = {"name": self.model, "stream": True}

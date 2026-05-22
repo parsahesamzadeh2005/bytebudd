@@ -1,38 +1,69 @@
-# Environment files (NEVER commit these)
+# ── Environment & secrets ─────────────────────────────────────────────────────
 .env
 .env.local
+.env.*.local
 .env.production
+.env.staging
+*.pem
+*.key
 
-# Python
+# ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
 *.egg-info/
-.venv/
-venv/
 dist/
 build/
-*.egg
+.eggs/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
 
-# Node.js
+# ── Node.js ───────────────────────────────────────────────────────────────────
 node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/
+
+# ── Next.js ───────────────────────────────────────────────────────────────────
 .next/
 out/
-npm-debug.log*
+.vercel/
 
-# Docker volumes (local data)
+# ── Docker volumes (local data) ───────────────────────────────────────────────
 postgres_data/
 mysql_data/
 ollama_data/
 
-# IDE
+# ── Logs ──────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── IDE & editors ─────────────────────────────────────────────────────────────
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
-# OS
+# ── OS files ──────────────────────────────────────────────────────────────────
 .DS_Store
+._*
 Thumbs.db
+desktop.ini
 
-# Logs
-*.log
-logs/
+# ── Temporary files ───────────────────────────────────────────────────────────
+*.tmp
+*.temp
+*.bak
+.cache/
+tmp/
