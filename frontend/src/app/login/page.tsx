@@ -52,7 +52,7 @@ export default function LoginPage() {
                 Email address
               </label>
               <input
-                type="email"
+                type="text"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}

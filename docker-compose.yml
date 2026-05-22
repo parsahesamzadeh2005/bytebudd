@@ -53,7 +53,7 @@ services:
     volumes:
       - ./frontend/src:/app/src
       - ./frontend/public:/app/public
-      - frontend_next:/app/.next
+      - ./frontend/.next:/app/.next
     restart: unless-stopped
     networks:
       - bytebudd-net
@@ -67,7 +67,7 @@ services:
       - POSTGRES_USER=bytebudd
       - POSTGRES_PASSWORD=bytebudd_secret
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U bytebudd -d bytebudd"]
       interval: 5s
@@ -89,7 +89,7 @@ services:
       - MYSQL_USER=sample_user
       - MYSQL_PASSWORD=sample_password
     volumes:
-      - mysql_data:/var/lib/mysql
+      - ./data/mysql:/var/lib/mysql
       - ./infrastructure/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "sample_user", "-psample_password"]
@@ -99,11 +99,6 @@ services:
     restart: unless-stopped
     networks:
       - bytebudd-net
-
-volumes:
-  postgres_data:
-  mysql_data:
-  frontend_next:
 
 networks:
   bytebudd-net:

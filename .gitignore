@@ -40,9 +40,9 @@ out/
 .vercel/
 
 # ── Docker volumes (local data) ───────────────────────────────────────────────
-postgres_data/
-mysql_data/
-ollama_data/
+data/postgres/
+data/mysql/
+frontend/.next/
 
 # ── Logs ──────────────────────────────────────────────────────────────────────
 *.log

@@ -41,9 +41,12 @@ async function apiFetch<T>(
   });
 
   if (response.status === 401) {
-    removeToken();
-    window.location.href = "/login";
-    throw new Error("Unauthorized");
+    // Don't redirect on the login endpoint itself — let the error bubble up
+    if (!path.includes("/auth/login")) {
+      removeToken();
+      window.location.href = "/login";
+      throw new Error("Unauthorized");
+    }
   }
 
   if (!response.ok) {
