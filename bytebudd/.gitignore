@@ -1,0 +1,38 @@
+# Environment files (NEVER commit these)
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+dist/
+build/
+*.egg
+
+# Node.js
+node_modules/
+.next/
+out/
+npm-debug.log*
+
+# Docker volumes (local data)
+postgres_data/
+mysql_data/
+ollama_data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/

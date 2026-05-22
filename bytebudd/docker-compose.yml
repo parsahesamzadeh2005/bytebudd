@@ -1,0 +1,112 @@
+version: "3.9"
+
+services:
+  # ─── Nginx reverse proxy ───────────────────────────────────────────────────
+  nginx:
+    image: nginx:1.25-alpine
+    container_name: bytebudd-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infrastructure/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend
+      - frontend
+    restart: unless-stopped
+    networks:
+      - bytebudd-net
+
+  # ─── FastAPI backend ──────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: bytebudd-backend
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://bytebudd:bytebudd_secret@postgres:5432/bytebudd
+      - SECRET_KEY=${SECRET_KEY:-change-me-in-production-use-strong-secret}
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=60
+      - OLLAMA_BASE_URL=http://192.168.1.99:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-qwen3:14b}
+      - OLLAMA_TIMEOUT=120
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-change-me-32-char-encryption-key!}
+      - CORS_ORIGINS=http://localhost,http://localhost:3000,http://localhost:80
+      - ENVIRONMENT=development
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+    restart: unless-stopped
+    networks:
+      - bytebudd-net
+
+  # ─── Next.js frontend ────────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: development
+    container_name: bytebudd-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost/api
+      - NODE_ENV=development
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+      - frontend_next:/app/.next
+    restart: unless-stopped
+    networks:
+      - bytebudd-net
+
+  # ─── PostgreSQL (ByteBudd internal DB) ───────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: bytebudd-postgres
+    environment:
+      - POSTGRES_DB=bytebudd
+      - POSTGRES_USER=bytebudd
+      - POSTGRES_PASSWORD=bytebudd_secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bytebudd -d bytebudd"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - bytebudd-net
+
+  # ─── MySQL (sample target DB for chatbot testing) ────────────────────────
+  mysql:
+    image: mysql:8.0
+    container_name: bytebudd-mysql
+    ports:
+      - "3307:3306"          # exposed on 3307 to avoid clashing with a local MySQL
+    environment:
+      - MYSQL_ROOT_PASSWORD=root_secret
+      - MYSQL_DATABASE=sample_db
+      - MYSQL_USER=sample_user
+      - MYSQL_PASSWORD=sample_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./infrastructure/mysql/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "sample_user", "-psample_password"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - bytebudd-net
+
+volumes:
+  postgres_data:
+  mysql_data:
+  frontend_next:
+
+networks:
+  bytebudd-net:
+    driver: bridge
