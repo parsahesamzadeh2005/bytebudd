@@ -66,12 +66,24 @@ export default function ConversationPage() {
 
   // Convert DB messages to ChatMessage format
   const initialMessages: ChatMessage[] = (conversation?.messages || []).map(
-    (msg) => ({
-      id: String(msg.id),
-      role: msg.role,
-      content: msg.content,
-      sql: msg.generated_sql || undefined,
-    })
+    (msg) => {
+      // Parse stored result_data back into SSEResultsEvent shape
+      let results = undefined;
+      if (msg.result_data) {
+        try {
+          results = JSON.parse(msg.result_data);
+        } catch {
+          // ignore malformed data
+        }
+      }
+      return {
+        id: String(msg.id),
+        role: msg.role,
+        content: msg.content,
+        sql: msg.generated_sql || undefined,
+        results,
+      };
+    }
   );
 
   if (loading) {

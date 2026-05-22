@@ -44,6 +44,7 @@ export interface Message {
   role: "user" | "assistant";
   content: string;
   generated_sql: string | null;
+  result_data: string | null;
   created_at: string;
 }
 

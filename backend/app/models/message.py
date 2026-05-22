@@ -18,8 +18,9 @@ class Message(Base):
         Enum("user", "assistant", name="message_role"), nullable=False
     )
     content: Mapped[str] = mapped_column(Text, nullable=False)
-    # Optionally store the generated SQL
     generated_sql: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Stores serialised query results as JSON so history can re-render the table
+    result_data: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(timezone.utc)
     )

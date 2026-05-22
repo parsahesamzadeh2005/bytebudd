@@ -153,6 +153,9 @@ async def run_query_pipeline(
             question=question,
             answer=explanation,
             sql=safe_sql,
+            rows=rows,
+            columns=columns,
+            row_count=row_count,
         )
 
         yield _sse_event("done", {"message": "Query complete"})
@@ -199,6 +202,9 @@ async def _save_messages(
     question: str,
     answer: str,
     sql: str,
+    rows: list,
+    columns: list,
+    row_count: int,
 ) -> None:
     """Save the user question and assistant response to the conversation."""
     # User message
@@ -209,12 +215,20 @@ async def _save_messages(
     )
     db.add(user_msg)
 
+    # Serialise results so history can re-render the table (cap at 200 rows to keep it lean)
+    result_payload = json.dumps({
+        "columns": columns,
+        "rows": rows[:200],
+        "row_count": row_count,
+    })
+
     # Assistant response
     assistant_msg = Message(
         conversation_id=conversation_id,
         role="assistant",
         content=answer,
         generated_sql=sql,
+        result_data=result_payload,
     )
     db.add(assistant_msg)
 
