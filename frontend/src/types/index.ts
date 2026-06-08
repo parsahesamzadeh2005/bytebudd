@@ -40,6 +40,8 @@ export interface Conversation {
   id: number;
   title: string;
   db_connection_id: number | null;
+  ollama_profile_id: number | null;
+  ollama_model_name: string | null;
   created_at: string;
   updated_at: string;
 }

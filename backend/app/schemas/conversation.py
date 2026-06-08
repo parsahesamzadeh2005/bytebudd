@@ -13,6 +13,8 @@ class ConversationOut(BaseModel):
     id: int
     title: str
     db_connection_id: int | None
+    ollama_profile_id: int | None = None    # Last-used Ollama profile for this chat
+    ollama_model_name: str | None = None    # Last-used model within that profile
     created_at: datetime
     updated_at: datetime
 
@@ -32,6 +34,11 @@ class MessageOut(BaseModel):
 
 class ConversationDetail(ConversationOut):
     messages: list[MessageOut] = []
+
+
+class ConversationProfileUpdate(BaseModel):
+    profile_id: int | None
+    model_name: str | None
 
 
 class QueryRequest(BaseModel):

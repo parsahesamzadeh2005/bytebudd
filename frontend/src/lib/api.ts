@@ -135,6 +135,12 @@ export const conversationApi = {
     apiFetch<Conversation>(`/conversations/${id}/title?title=${encodeURIComponent(title)}`, {
       method: "PATCH",
     }),
+
+  saveProfile: (id: number, profileId: number | null, modelName: string | null) =>
+    apiFetch<Conversation>(`/conversations/${id}/profile`, {
+      method: "PATCH",
+      body: JSON.stringify({ profile_id: profileId, model_name: modelName }),
+    }),
 };
 
 // ── Query API (SSE streaming) ─────────────────────────────────────────────

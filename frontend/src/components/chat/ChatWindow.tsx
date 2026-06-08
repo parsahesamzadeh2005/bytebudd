@@ -4,19 +4,24 @@ import { useEffect, useRef, useState } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { ChatMessage, SSEResultsEvent } from "@/types";
 import { MessageBubble } from "./MessageBubble";
-import { streamQuery } from "@/lib/api";
+import { streamQuery, conversationApi } from "@/lib/api";
 import { ProfileSelector } from "@/components/ollama/ProfileSelector";
 
 interface ChatWindowProps {
   conversationId: number;
   dbConnectionId: number;
   initialMessages?: ChatMessage[];
+  /** Saved profile from the last session — pre-selects on mount. */
+  initialProfileId?: number | null;
+  initialModelName?: string | null;
 }
 
 export function ChatWindow({
   conversationId,
   dbConnectionId,
   initialMessages = [],
+  initialProfileId,
+  initialModelName,
 }: ChatWindowProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -179,15 +184,21 @@ export function ChatWindow({
       <div className="border-t border-gray-200 bg-white p-4">
         {/* Profile + model selector */}
         <ProfileSelector
+          initialProfileId={initialProfileId}
+          initialModel={initialModelName}
           onSelect={(profileId, modelName) => {
             if (profileId === -1) {
               setSelectedProfileId(null);
               setSelectedModel(null);
               setProfileReady(false);
+              // Clear saved profile for this conversation
+              conversationApi.saveProfile(conversationId, null, null).catch(() => {});
             } else {
               setSelectedProfileId(profileId);
               setSelectedModel(modelName);
               setProfileReady(true);
+              // Persist the new selection for this conversation
+              conversationApi.saveProfile(conversationId, profileId, modelName).catch(() => {});
             }
           }}
           disabled={isLoading}

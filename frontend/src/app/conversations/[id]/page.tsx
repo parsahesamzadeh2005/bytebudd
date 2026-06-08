@@ -134,6 +134,8 @@ export default function ConversationPage() {
               conversationId={convId}
               dbConnectionId={dbConnection.id}
               initialMessages={initialMessages}
+              initialProfileId={conversation.ollama_profile_id}
+              initialModelName={conversation.ollama_model_name}
             />
           </div>
         ) : (

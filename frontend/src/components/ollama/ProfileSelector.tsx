@@ -9,9 +9,12 @@ interface ProfileSelectorProps {
   /** Called whenever the selection changes. profileId=-1 means no valid selection. */
   onSelect: (profileId: number, modelName: string) => void;
   disabled?: boolean;
+  /** Pre-select a previously saved profile when reopening a conversation. */
+  initialProfileId?: number | null;
+  initialModel?: string | null;
 }
 
-export function ProfileSelector({ onSelect, disabled }: ProfileSelectorProps) {
+export function ProfileSelector({ onSelect, disabled, initialProfileId, initialModel }: ProfileSelectorProps) {
   const [profiles, setProfiles] = useState<OllamaProfile[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<string>("");
@@ -26,6 +29,17 @@ export function ProfileSelector({ onSelect, disabled }: ProfileSelectorProps) {
     try {
       const active = await ollamaProfileApi.listActive();
       setProfiles(active);
+
+      // Restore a previously saved selection if it's still valid
+      if (initialProfileId != null && initialModel) {
+        const savedProfile = active.find((p) => p.id === initialProfileId);
+        if (savedProfile && savedProfile.models.includes(initialModel)) {
+          setSelectedProfileId(savedProfile.id);
+          setSelectedModel(initialModel);
+          onSelect(savedProfile.id, initialModel);
+          return;
+        }
+      }
 
       // Auto-select when there is exactly one profile with one model
       if (active.length === 1 && active[0].models.length === 1) {

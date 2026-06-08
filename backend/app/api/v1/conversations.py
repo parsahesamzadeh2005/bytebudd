@@ -11,7 +11,12 @@ from app.core.database import get_db
 from app.core.deps import get_current_user
 from app.models.user import User
 from app.models.conversation import Conversation
-from app.schemas.conversation import ConversationCreate, ConversationOut, ConversationDetail
+from app.schemas.conversation import (
+    ConversationCreate,
+    ConversationOut,
+    ConversationDetail,
+    ConversationProfileUpdate,
+)
 
 router = APIRouter()
 
@@ -107,6 +112,30 @@ async def update_title(
     if not conv:
         raise HTTPException(status_code=404, detail="Conversation not found")
     conv.title = title
+    await db.flush()
+    await db.refresh(conv)
+    return ConversationOut.model_validate(conv)
+
+
+@router.patch("/{conv_id}/profile", response_model=ConversationOut)
+async def update_profile(
+    conv_id: int,
+    payload: ConversationProfileUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Persist the last-used Ollama profile + model for a conversation."""
+    result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == conv_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    conv = result.scalar_one_or_none()
+    if not conv:
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    conv.ollama_profile_id = payload.profile_id
+    conv.ollama_model_name = payload.model_name
     await db.flush()
     await db.refresh(conv)
     return ConversationOut.model_validate(conv)
