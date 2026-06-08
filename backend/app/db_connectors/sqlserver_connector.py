@@ -62,13 +62,13 @@ class SQLServerConnector(BaseConnector):
 
         return ";".join(parts)
 
-    def _run_sync(self, fn: Callable[[], T]) -> T:
+    async def _run_sync(self, fn: Callable[[], T]) -> T:
         """
         Run a blocking pyodbc call in a thread pool so it doesn't block
         the asyncio event loop.
         """
         loop = asyncio.get_running_loop()
-        return loop.run_in_executor(None, fn)
+        return await loop.run_in_executor(None, fn)
 
     async def test_connection(self) -> dict:
         """

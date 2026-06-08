@@ -27,7 +27,7 @@ _GENERATION_OPTIONS = {
 }
 
 
-async def _call_ollama(
+async def call_ollama(
     host_url: str,
     model: str,
     prompt: str,
@@ -95,7 +95,7 @@ class OllamaClient:
 
     async def generate(self, prompt: str) -> str:
         """Generate a SQL query from a prompt using the configured model."""
-        return await _call_ollama(self.base_url, self.model, prompt, self.timeout)
+        return await call_ollama(self.base_url, self.model, prompt, self.timeout)
 
     async def pull_model(self) -> AsyncIterator[str]:
         """Pull/download the configured model from the Ollama registry."""
@@ -126,4 +126,4 @@ async def generate_with_profile(host_url: str, model: str, prompt: str) -> str:
     Generate a SQL query using an explicit Ollama host and model.
     Used when the user has selected a named Ollama profile.
     """
-    return await _call_ollama(host_url, model, prompt, settings.ollama_timeout)
+    return await call_ollama(host_url, model, prompt, settings.ollama_timeout)

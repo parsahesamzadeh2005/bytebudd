@@ -28,6 +28,8 @@ class DBConnectionUpdate(BaseModel):
     username: str | None = None
     password: str | None = None
     sqlite_path: str | None = None
+    instance_name: str | None = None  # SQL Server named instance
+    odbc_driver: str | None = None    # ODBC driver override
 
 
 class DBConnectionOut(BaseModel):

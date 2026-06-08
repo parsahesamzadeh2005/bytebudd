@@ -3,7 +3,7 @@
  * All requests go through /api prefix (proxied by Nginx to backend:8000).
  */
 
-import { OllamaProfile, OllamaProfileCreate, OllamaProfileUpdate } from "@/types";
+import { OllamaProfile, OllamaProfileCreate, OllamaProfileUpdate, DBConnection, DBConnectionCreate, Conversation, ConversationDetail } from "@/types";
 
 // Use a relative URL so the browser always calls back to the host that served the page.
 // This works correctly whether accessed from localhost or another machine on the network.
@@ -91,13 +91,13 @@ export const authApi = {
 // ── Database Connection API ───────────────────────────────────────────────
 
 export const dbApi = {
-  list: () => apiFetch<unknown[]>("/databases/"),
+  list: () => apiFetch<DBConnection[]>("/databases/"),
 
-  create: (data: unknown) =>
-    apiFetch<unknown>("/databases/", { method: "POST", body: JSON.stringify(data) }),
+  create: (data: DBConnectionCreate) =>
+    apiFetch<DBConnection>("/databases/", { method: "POST", body: JSON.stringify(data) }),
 
-  update: (id: number, data: unknown) =>
-    apiFetch<unknown>(`/databases/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  update: (id: number, data: Partial<DBConnectionCreate>) =>
+    apiFetch<DBConnection>(`/databases/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   delete: (id: number) =>
     apiFetch<void>(`/databases/${id}`, { method: "DELETE" }),
@@ -115,10 +115,10 @@ export const dbApi = {
 // ── Conversations API ─────────────────────────────────────────────────────
 
 export const conversationApi = {
-  list: () => apiFetch<unknown[]>("/conversations/"),
+  list: () => apiFetch<Conversation[]>("/conversations/"),
 
   create: (dbConnectionId: number, title?: string) =>
-    apiFetch<unknown>("/conversations/", {
+    apiFetch<Conversation>("/conversations/", {
       method: "POST",
       body: JSON.stringify({
         db_connection_id: dbConnectionId,
@@ -126,13 +126,13 @@ export const conversationApi = {
       }),
     }),
 
-  get: (id: number) => apiFetch<unknown>(`/conversations/${id}`),
+  get: (id: number) => apiFetch<ConversationDetail>(`/conversations/${id}`),
 
   delete: (id: number) =>
     apiFetch<void>(`/conversations/${id}`, { method: "DELETE" }),
 
   updateTitle: (id: number, title: string) =>
-    apiFetch<unknown>(`/conversations/${id}/title?title=${encodeURIComponent(title)}`, {
+    apiFetch<Conversation>(`/conversations/${id}/title?title=${encodeURIComponent(title)}`, {
       method: "PATCH",
     }),
 };

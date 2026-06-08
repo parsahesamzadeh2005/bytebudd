@@ -16,7 +16,7 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.deps import get_current_user, get_admin_user
-from app.llm.ollama_client import ollama_client, OllamaError, _call_ollama
+from app.llm.ollama_client import ollama_client, OllamaError, call_ollama
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.schemas.conversation import QueryRequest
@@ -158,7 +158,7 @@ async def chart_reshape(
 
     # Call Ollama with an increased num_predict to accommodate full JSON output
     try:
-        raw = await _call_ollama(
+        raw = await call_ollama(
             host_url=ollama_client.base_url,
             model=ollama_client.model,
             prompt=prompt,

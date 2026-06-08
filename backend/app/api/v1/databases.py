@@ -101,6 +101,10 @@ async def update_connection(
         conn.encrypted_password = encrypt_password(payload.password)
     if payload.sqlite_path is not None:
         conn.sqlite_path = payload.sqlite_path
+    if payload.instance_name is not None:
+        conn.instance_name = payload.instance_name
+    if payload.odbc_driver is not None:
+        conn.odbc_driver = payload.odbc_driver
 
     await db.flush()
     await db.refresh(conn)

@@ -55,7 +55,7 @@ async def create_admin():
 
         print(f"[✓] Admin user created successfully!")
         print(f"    Email:    {email}")
-        print(f"    Password: {password}")
+        print(f"    Password: (set via ADMIN_PASSWORD env variable)")
         print(f"    Role:     admin")
         print(f"    ID:       {admin.id}")
         print()

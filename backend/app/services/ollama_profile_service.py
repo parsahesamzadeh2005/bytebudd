@@ -200,7 +200,7 @@ async def get_active_profiles(db: AsyncSession) -> list[OllamaProfile]:
     """Return all profiles where is_active=True."""
     result = await db.execute(
         select(OllamaProfile)
-        .where(OllamaProfile.is_active == True)  # noqa: E712
+        .where(OllamaProfile.is_active.is_(True))
         .order_by(OllamaProfile.created_at.desc())
     )
     return list(result.scalars().all())

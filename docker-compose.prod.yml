@@ -54,10 +54,19 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  # Optional: only needed when running Ollama in a container.
+  # If OLLAMA_BASE_URL points to an external host, you can remove this service.
   ollama:
+    image: ollama/ollama:latest
     restart: always
+    volumes:
+      - ollama_data:/root/.ollama
     logging:
       driver: "json-file"
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  postgres_data:
+  ollama_data:
