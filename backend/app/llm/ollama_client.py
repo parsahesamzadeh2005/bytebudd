@@ -27,18 +27,32 @@ _GENERATION_OPTIONS = {
 }
 
 
-async def _call_ollama(host_url: str, model: str, prompt: str, timeout: int) -> str:
+async def _call_ollama(
+    host_url: str,
+    model: str,
+    prompt: str,
+    timeout: int,
+    num_predict: int | None = None,
+) -> str:
     """
     Send a prompt to an Ollama server and return the generated text.
 
     This is the single shared implementation used by both the default client
     and profile-aware generation. Raises OllamaError on any failure.
+
+    Args:
+        num_predict: Override the token limit for this call. When None the
+                     module-level default (512) is used.
     """
+    options = dict(_GENERATION_OPTIONS)
+    if num_predict is not None:
+        options["num_predict"] = num_predict
+
     payload = {
         "model": model,
         "prompt": prompt,
         "stream": False,
-        "options": _GENERATION_OPTIONS,
+        "options": options,
     }
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:

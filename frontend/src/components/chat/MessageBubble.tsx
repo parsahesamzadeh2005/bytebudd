@@ -3,7 +3,7 @@
 import { Bot, User, AlertCircle } from "lucide-react";
 import { ChatMessage } from "@/types";
 import { SqlPreview } from "./SqlPreview";
-import { DataGrid } from "./DataGrid";
+import { ResultPanel } from "./ResultPanel";
 import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
@@ -56,7 +56,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
 
         {/* Data grid */}
         {message.results && !message.isStreaming && (
-          <DataGrid
+          <ResultPanel
             columns={message.results.columns}
             rows={message.results.rows}
             rowCount={message.results.row_count}

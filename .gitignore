@@ -68,3 +68,6 @@ desktop.ini
 *.bak
 .cache/
 tmp/
+
+# ── Docker image archives ─────────────────────────────────────────────────────
+*.tar.gz

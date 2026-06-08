@@ -15,11 +15,14 @@ from sqlalchemy import select
 
 from app.core.database import get_db
 from app.core.deps import get_current_user
-from app.llm.ollama_client import ollama_client
+from app.llm.ollama_client import ollama_client, OllamaError, _call_ollama
 from app.models.user import User
 from app.models.conversation import Conversation
 from app.schemas.conversation import QueryRequest
+from app.schemas.query import ChartReshapeRequest, ChartReshapeResponse, ChartSpecOut
 from app.services.query_pipeline import run_query_pipeline
+from app.prompts.chart_reshape_prompt import build_chart_reshape_prompt
+from app.core.config import settings
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -101,3 +104,93 @@ async def pull_model(_user: User = Depends(get_current_user)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.post("/chart-reshape", response_model=ChartReshapeResponse)
+async def chart_reshape(
+    payload: ChartReshapeRequest,
+    _user: User = Depends(get_current_user),
+) -> ChartReshapeResponse:
+    """
+    Accept the current query result and a target chart type, call Ollama to
+    reshape / transform the data, and return the transformed dataset with a
+    ready-to-use chart spec.
+
+    The 200-row limit is enforced by the request schema's model_validator.
+    Authentication requires a valid JWT Bearer token.
+    """
+    prompt = build_chart_reshape_prompt(
+        columns=payload.columns,
+        rows=payload.rows,
+        target_chart_type=payload.target_chart_type,
+    )
+
+    # Call Ollama with an increased num_predict to accommodate full JSON output
+    try:
+        raw = await _call_ollama(
+            host_url=ollama_client.base_url,
+            model=ollama_client.model,
+            prompt=prompt,
+            timeout=ollama_client.timeout,
+            num_predict=2048,
+        )
+    except OllamaError as e:
+        logger.error("Ollama error during chart reshape: %s", e)
+        return ChartReshapeResponse(
+            success=False,
+            error="AI service is unavailable. Check that Ollama is running and try again.",
+        )
+
+    # Parse the LLM's JSON response
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        logger.warning("Ollama returned non-JSON for chart reshape: %r", raw)
+        return ChartReshapeResponse(
+            success=False,
+            error=(
+                "AI returned an unrecognisable response. "
+                "Please try again or select a different chart type."
+            ),
+        )
+
+    if not isinstance(parsed, dict):
+        return ChartReshapeResponse(
+            success=False,
+            error=(
+                "AI returned an unrecognisable response. "
+                "Please try again or select a different chart type."
+            ),
+        )
+
+    if parsed.get("success") is True:
+        # Validate that required fields are present
+        try:
+            chart_spec_raw = parsed["chart_spec"]
+            spec = ChartSpecOut(
+                type=chart_spec_raw["type"],
+                category_key=chart_spec_raw.get("category_key"),
+                value_keys=chart_spec_raw["value_keys"],
+                title=chart_spec_raw.get("title", ""),
+            )
+            return ChartReshapeResponse(
+                success=True,
+                columns=parsed["columns"],
+                rows=parsed["rows"],
+                chart_spec=spec,
+            )
+        except (KeyError, TypeError) as e:
+            logger.warning("Ollama success response missing required fields: %s | raw: %r", e, raw)
+            return ChartReshapeResponse(
+                success=False,
+                error=(
+                    "AI returned an unrecognisable response. "
+                    "Please try again or select a different chart type."
+                ),
+            )
+    else:
+        return ChartReshapeResponse(
+            success=False,
+            error=parsed.get("error", "The AI could not reshape data for the selected chart type."),
+            suggested_chart_type=parsed.get("suggested_chart_type"),
+        )
