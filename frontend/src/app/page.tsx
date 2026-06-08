@@ -34,8 +34,8 @@ export default function HomePage() {
       setConversations(convs);
       setDatabases(dbs);
       setUser(me);
-    } catch {
-      // silently handle
+    } catch (err) {
+      console.error("Failed to load home page data:", err);
     } finally {
       setLoading(false);
     }
@@ -51,6 +51,8 @@ export default function HomePage() {
     try {
       const conv = (await conversationApi.create(databases[0].id)) as Conversation;
       router.push(`/conversations/${conv.id}`);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create conversation");
     } finally {
       setCreating(false);
     }
@@ -63,6 +65,7 @@ export default function HomePage() {
       <Sidebar
         conversations={conversations}
         onNewConversation={handleNewConversation}
+        onConversationsChange={setConversations}
         user={user}
       />
 

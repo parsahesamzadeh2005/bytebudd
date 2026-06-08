@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Plus, Cpu } from "lucide-react";
+import { Plus, Cpu, Wifi, WifiOff, Download, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
-import { authApi, ollamaProfileApi, conversationApi } from "@/lib/api";
+import { authApi, ollamaProfileApi, ollamaApi, conversationApi } from "@/lib/api";
 import { OllamaProfile, User, Conversation } from "@/types";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { ProfileList } from "@/components/ollama/ProfileList";
@@ -18,6 +18,14 @@ export default function OllamaProfilesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Ollama status state
+  const [ollamaStatus, setOllamaStatus] = useState<{ available: boolean; model: string; base_url: string } | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullLog, setPullLog] = useState<string[]>([]);
+  const [showPullLog, setShowPullLog] = useState(false);
+  const pullLogRef = useRef<HTMLDivElement>(null);
 
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
@@ -41,7 +49,6 @@ export default function OllamaProfilesPage() {
         conversationApi.list() as Promise<Conversation[]>,
       ]);
 
-      // Redirect non-admins
       if (me.role !== "admin") {
         router.push("/");
         return;
@@ -54,6 +61,44 @@ export default function OllamaProfilesPage() {
       setError(err instanceof Error ? err.message : "Failed to load data");
     } finally {
       setLoading(false);
+    }
+
+    // Check Ollama status in parallel (non-blocking)
+    checkOllamaStatus();
+  }
+
+  async function checkOllamaStatus() {
+    setStatusLoading(true);
+    try {
+      const status = await ollamaApi.status();
+      setOllamaStatus(status);
+    } catch (err) {
+      setOllamaStatus({ available: false, model: "unknown", base_url: "" });
+      console.error("Ollama status check failed:", err);
+    } finally {
+      setStatusLoading(false);
+    }
+  }
+
+  async function handlePullModel() {
+    setPulling(true);
+    setPullLog([]);
+    setShowPullLog(true);
+    try {
+      await ollamaApi.pull((msg) => {
+        setPullLog((prev) => [...prev, msg]);
+        // Auto-scroll log
+        setTimeout(() => {
+          pullLogRef.current?.scrollTo({ top: pullLogRef.current.scrollHeight, behavior: "smooth" });
+        }, 50);
+      });
+      setPullLog((prev) => [...prev, "✓ Pull complete"]);
+      // Refresh status
+      await checkOllamaStatus();
+    } catch (err) {
+      setPullLog((prev) => [...prev, `✗ Error: ${err instanceof Error ? err.message : "Pull failed"}`]);
+    } finally {
+      setPulling(false);
     }
   }
 
@@ -140,6 +185,78 @@ export default function OllamaProfilesPage() {
               {error}
             </div>
           )}
+
+          {/* Ollama status card */}
+          <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm mb-6">
+            <div className="flex items-center justify-between flex-wrap gap-3">
+              <div className="flex items-center gap-3">
+                {statusLoading ? (
+                  <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
+                ) : ollamaStatus?.available ? (
+                  <Wifi className="w-5 h-5 text-green-500" />
+                ) : (
+                  <WifiOff className="w-5 h-5 text-red-400" />
+                )}
+                <div>
+                  <p className="text-sm font-medium text-gray-800">
+                    Ollama —{" "}
+                    {statusLoading
+                      ? "Checking…"
+                      : ollamaStatus?.available
+                      ? "Available"
+                      : "Unavailable"}
+                  </p>
+                  {ollamaStatus && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      Model: <span className="font-mono">{ollamaStatus.model}</span>
+                      {" · "}
+                      <span className="font-mono">{ollamaStatus.base_url}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={checkOllamaStatus}
+                  disabled={statusLoading}
+                  className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+                >
+                  Refresh
+                </button>
+                <button
+                  onClick={handlePullModel}
+                  disabled={pulling}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium rounded-lg transition-colors"
+                >
+                  {pulling ? (
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                  ) : (
+                    <Download className="w-3 h-3" />
+                  )}
+                  {pulling ? "Pulling…" : "Pull Model"}
+                </button>
+                {pullLog.length > 0 && (
+                  <button
+                    onClick={() => setShowPullLog((v) => !v)}
+                    className="flex items-center gap-1 px-2 py-1.5 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50"
+                  >
+                    {showPullLog ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    Log
+                  </button>
+                )}
+              </div>
+            </div>
+            {showPullLog && pullLog.length > 0 && (
+              <div
+                ref={pullLogRef}
+                className="mt-3 bg-gray-900 rounded-xl p-3 max-h-40 overflow-y-auto"
+              >
+                {pullLog.map((line, i) => (
+                  <p key={i} className="text-xs font-mono text-green-400 leading-5">{line}</p>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Profile list */}
           <ProfileList

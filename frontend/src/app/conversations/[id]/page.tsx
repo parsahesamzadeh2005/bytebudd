@@ -18,6 +18,7 @@ export default function ConversationPage() {
   const [allConversations, setAllConversations] = useState<Conversation[]>([]);
   const [dbConnection, setDbConnection] = useState<DBConnection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [databases, setDatabases] = useState<DBConnection[]>([]);
   const [user, setUser] = useState<import("@/types").User | null>(null);
 
@@ -30,6 +31,7 @@ export default function ConversationPage() {
   }, [convId]);
 
   async function loadData() {
+    setError(null);
     try {
       const [conv, convs, dbs, me] = await Promise.all([
         conversationApi.get(convId) as Promise<ConversationDetail>,
@@ -42,12 +44,12 @@ export default function ConversationPage() {
       setDatabases(dbs);
       setUser(me as import("@/types").User);
 
-      // Find the connected DB
       if (conv.db_connection_id) {
         const db = dbs.find((d) => d.id === conv.db_connection_id);
         setDbConnection(db || null);
       }
-    } catch {
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load conversation");
       router.push("/");
     } finally {
       setLoading(false);
@@ -62,32 +64,37 @@ export default function ConversationPage() {
     try {
       const conv = (await conversationApi.create(databases[0].id)) as Conversation;
       router.push(`/conversations/${conv.id}`);
-    } catch {
-      // handle error
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to create conversation");
     }
   }
 
+  async function handleTitleChange(newTitle: string) {
+    await conversationApi.updateTitle(convId, newTitle);
+    setConversation((prev) => prev ? { ...prev, title: newTitle } : prev);
+    setAllConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, title: newTitle } : c))
+    );
+  }
+
   // Convert DB messages to ChatMessage format
-  const initialMessages: ChatMessage[] = (conversation?.messages || []).map(
-    (msg) => {
-      // Parse stored result_data back into SSEResultsEvent shape
-      let results = undefined;
-      if (msg.result_data) {
-        try {
-          results = JSON.parse(msg.result_data);
-        } catch {
-          // ignore malformed data
-        }
+  const initialMessages: ChatMessage[] = (conversation?.messages || []).map((msg) => {
+    let results = undefined;
+    if (msg.result_data) {
+      try {
+        results = JSON.parse(msg.result_data);
+      } catch {
+        // malformed stored data — skip silently, results just won't show
       }
-      return {
-        id: String(msg.id),
-        role: msg.role,
-        content: msg.content,
-        sql: msg.generated_sql || undefined,
-        results,
-      };
     }
-  );
+    return {
+      id: String(msg.id),
+      role: msg.role,
+      content: msg.content,
+      sql: msg.generated_sql || undefined,
+      results,
+    };
+  });
 
   if (loading) {
     return (
@@ -97,13 +104,20 @@ export default function ConversationPage() {
     );
   }
 
-  if (!conversation) return null;
+  if (!conversation) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-red-600">
+        {error || "Conversation not found"}
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen">
       <Sidebar
         conversations={allConversations}
         onNewConversation={handleNewConversation}
+        onConversationsChange={setAllConversations}
         user={user}
       />
 
@@ -111,6 +125,7 @@ export default function ConversationPage() {
         <TopNav
           title={conversation.title}
           dbConnection={dbConnection}
+          onTitleChange={handleTitleChange}
         />
 
         {dbConnection ? (

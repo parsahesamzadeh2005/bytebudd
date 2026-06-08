@@ -1,5 +1,6 @@
 """Auth-related Pydantic schemas."""
 
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 
@@ -31,3 +32,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str = "user"
+
+
+class UserUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    role: Optional[Literal["admin", "user"]] = None
+    password: Optional[str] = None

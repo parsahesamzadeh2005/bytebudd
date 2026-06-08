@@ -15,6 +15,8 @@ import {
   XCircle,
   Loader2,
   Edit2,
+  Code2,
+  X,
 } from "lucide-react";
 import { dbTypeColor, dbTypeLabel } from "@/lib/utils";
 
@@ -41,6 +43,9 @@ export default function DatabasesPage() {
   const [editingDb, setEditingDb] = useState<DBConnection | null>(null);
   const [testingId, setTestingId] = useState<number | null>(null);
   const [testResults, setTestResults] = useState<Record<number, { success: boolean; message: string }>>({});
+  const [schemaDb, setSchemaDb] = useState<DBConnection | null>(null);
+  const [schemaContent, setSchemaContent] = useState<string | null>(null);
+  const [schemaLoading, setSchemaLoading] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -60,6 +65,8 @@ export default function DatabasesPage() {
       setDatabases(dbs);
       setConversations(convs);
       setUser(me);
+    } catch (err) {
+      console.error("Failed to load databases:", err);
     } finally {
       setLoading(false);
     }
@@ -86,8 +93,32 @@ export default function DatabasesPage() {
 
   async function handleDelete(id: number) {
     if (!confirm("Delete this database connection?")) return;
-    await dbApi.delete(id);
-    setDatabases((prev) => prev.filter((d) => d.id !== id));
+    try {
+      await dbApi.delete(id);
+      setDatabases((prev) => prev.filter((d) => d.id !== id));
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete connection");
+    }
+  }
+
+  async function handleViewSchema(db: DBConnection) {
+    if (schemaDb?.id === db.id) {
+      // toggle off
+      setSchemaDb(null);
+      setSchemaContent(null);
+      return;
+    }
+    setSchemaDb(db);
+    setSchemaContent(null);
+    setSchemaLoading(true);
+    try {
+      const result = await dbApi.getSchema(db.id);
+      setSchemaContent(result.schema);
+    } catch (err) {
+      setSchemaContent(`Error: ${err instanceof Error ? err.message : "Failed to load schema"}`);
+    } finally {
+      setSchemaLoading(false);
+    }
   }
 
   async function handleCreate(data: DBConnectionCreate) {
@@ -163,6 +194,8 @@ export default function DatabasesPage() {
                       setShowForm(false);
                       setEditingDb(editingDb?.id === db.id ? null : db);
                     }}
+                    onViewSchema={() => handleViewSchema(db)}
+                    schemaActive={schemaDb?.id === db.id}
                     onConnect={async () => {
                       const conv = (await conversationApi.create(db.id, `Chat with ${db.name}`)) as Conversation;
                       router.push(`/conversations/${conv.id}`);
@@ -174,6 +207,31 @@ export default function DatabasesPage() {
                       onSubmit={(data) => handleUpdate(db.id, data)}
                       onCancel={() => setEditingDb(null)}
                     />
+                  )}
+                  {schemaDb?.id === db.id && (
+                    <div className="mt-2 bg-gray-900 border border-gray-700 rounded-2xl overflow-hidden">
+                      <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-700">
+                        <span className="text-xs font-medium text-gray-300">Schema — {db.name}</span>
+                        <button
+                          onClick={() => { setSchemaDb(null); setSchemaContent(null); }}
+                          className="p-1 text-gray-500 hover:text-gray-300 rounded"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="max-h-96 overflow-y-auto p-4">
+                        {schemaLoading ? (
+                          <div className="flex items-center gap-2 text-gray-400 text-sm">
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Loading schema…
+                          </div>
+                        ) : (
+                          <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap leading-relaxed">
+                            {schemaContent}
+                          </pre>
+                        )}
+                      </div>
+                    </div>
                   )}
                 </div>
               ))}
@@ -194,6 +252,8 @@ function DBCard({
   onTest,
   onDelete,
   onEdit,
+  onViewSchema,
+  schemaActive,
   onConnect,
 }: {
   db: DBConnection;
@@ -202,6 +262,8 @@ function DBCard({
   onTest: () => void;
   onDelete: () => void;
   onEdit: () => void;
+  onViewSchema: () => void;
+  schemaActive: boolean;
   onConnect: () => void;
 }) {
   return (
@@ -258,6 +320,18 @@ function DBCard({
             className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
           >
             <Edit2 className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onViewSchema}
+            title="View schema"
+            className={`p-1.5 rounded-lg transition-colors ${
+              schemaActive
+                ? "text-green-600 bg-green-50"
+                : "text-gray-400 hover:text-green-600 hover:bg-green-50"
+            }`}
+          >
+            <Code2 className="w-4 h-4" />
           </button>
 
           <button

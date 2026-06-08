@@ -216,6 +216,60 @@ export async function streamQuery(
   }
 }
 
+// ── Admin user management API ─────────────────────────────────────────────
+
+export const adminApi = {
+  listUsers: () =>
+    apiFetch<{ id: number; email: string; role: string; is_active: boolean }[]>("/auth/users"),
+
+  createUser: (email: string, password: string, role: string) =>
+    apiFetch<{ id: number; email: string; role: string; is_active: boolean }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, role }),
+    }),
+
+  updateUser: (id: number, data: { is_active?: boolean; role?: string; password?: string }) =>
+    apiFetch<{ id: number; email: string; role: string; is_active: boolean }>(`/auth/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(data),
+    }),
+
+  deleteUser: (id: number) =>
+    apiFetch<void>(`/auth/users/${id}`, { method: "DELETE" }),
+};
+
+// ── Ollama status API ─────────────────────────────────────────────────────
+
+export const ollamaApi = {
+  status: () =>
+    apiFetch<{ available: boolean; model: string; base_url: string }>("/query/ollama/status"),
+
+  pull: (onStatus: (msg: string) => void): Promise<void> => {
+    const token = getToken();
+    return fetch(`${API_BASE}/v1/query/ollama/pull`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+    }).then(async (res) => {
+      if (!res.ok) throw new Error("Pull request failed");
+      const reader = res.body?.getReader();
+      if (!reader) return;
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const text = decoder.decode(value, { stream: true });
+        for (const line of text.split("\n")) {
+          const trimmed = line.replace(/^data:\s*/, "").trim();
+          if (trimmed) onStatus(trimmed);
+        }
+      }
+    });
+  },
+};
+
 // ── Ollama Profile API ────────────────────────────────────────────────────
 
 export const ollamaProfileApi = {
