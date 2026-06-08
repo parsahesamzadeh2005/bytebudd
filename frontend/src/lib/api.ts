@@ -244,6 +244,12 @@ export const ollamaApi = {
   status: () =>
     apiFetch<{ available: boolean; model: string; base_url: string }>("/query/ollama/status"),
 
+  updateConfig: (model: string, base_url: string) =>
+    apiFetch<{ available: boolean; model: string; base_url: string }>("/query/ollama/config", {
+      method: "PATCH",
+      body: JSON.stringify({ model, base_url }),
+    }),
+
   pull: (onStatus: (msg: string) => void): Promise<void> => {
     const token = getToken();
     return fetch(`${API_BASE}/v1/query/ollama/pull`, {

@@ -6,15 +6,16 @@ Accepts a natural language question and streams back SSE events.
 import asyncio
 import json
 import logging
-from typing import AsyncIterator
+from typing import AsyncIterator, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from app.core.database import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, get_admin_user
 from app.llm.ollama_client import ollama_client, OllamaError, _call_ollama
 from app.models.user import User
 from app.models.conversation import Conversation
@@ -80,6 +81,36 @@ async def query_stream(
 @router.get("/ollama/status")
 async def ollama_status(_user: User = Depends(get_current_user)):
     """Check if Ollama is reachable and the model is loaded."""
+    available = await ollama_client.is_available()
+    return {
+        "available": available,
+        "model": ollama_client.model,
+        "base_url": ollama_client.base_url,
+    }
+
+
+class OllamaConfigUpdate(BaseModel):
+    model: Optional[str] = None
+    base_url: Optional[str] = None
+
+
+@router.patch("/ollama/config")
+async def update_ollama_config(
+    payload: OllamaConfigUpdate,
+    _user: User = Depends(get_admin_user),
+):
+    """Update the active Ollama model and/or base_url at runtime (admin only)."""
+    model = (payload.model or "").strip()
+    base_url = (payload.base_url or "").strip()
+
+    if not model and not base_url:
+        raise HTTPException(status_code=400, detail="Provide at least 'model' or 'base_url'")
+
+    if model:
+        ollama_client.model = model
+    if base_url:
+        ollama_client.base_url = base_url.rstrip("/")
+
     available = await ollama_client.is_available()
     return {
         "available": available,
