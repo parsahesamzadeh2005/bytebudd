@@ -14,7 +14,6 @@ export default function HomePage() {
   const [databases, setDatabases] = useState<DBConnection[]>([]);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -41,21 +40,12 @@ export default function HomePage() {
     }
   }
 
-  async function handleNewConversation() {
+  function handleNewConversation() {
     if (databases.length === 0) {
       router.push("/databases");
       return;
     }
-    // Use the first available database for quick start
-    setCreating(true);
-    try {
-      const conv = (await conversationApi.create(databases[0].id)) as Conversation;
-      router.push(`/conversations/${conv.id}`);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to create conversation");
-    } finally {
-      setCreating(false);
-    }
+    router.push("/conversations/new");
   }
 
   if (loading) return <LoadingScreen />;
@@ -115,11 +105,10 @@ export default function HomePage() {
             ) : (
               <button
                 onClick={handleNewConversation}
-                disabled={creating}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium px-6 py-3 rounded-xl transition-colors"
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-medium px-6 py-3 rounded-xl transition-colors"
               >
                 <Plus className="w-4 h-4" />
-                {creating ? "Creating..." : "New Conversation"}
+                New Conversation
               </button>
             )}
           </div>

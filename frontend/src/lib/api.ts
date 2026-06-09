@@ -315,4 +315,10 @@ export const ollamaProfileApi = {
     }),
 
   listActive: () => apiFetch<OllamaProfile[]>("/ollama-profiles/active"),
+
+  checkAvailability: (id: number) =>
+    apiFetch<{ available: boolean; message: string; models: string[] }>(
+      `/ollama-profiles/${id}/check-availability`,
+      { method: "POST" }
+    ),
 };

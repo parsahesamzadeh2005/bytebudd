@@ -78,3 +78,9 @@ class OllamaProfileOut(BaseModel):
 
 class ActivateRequest(BaseModel):
     is_active: bool
+
+
+class CheckAvailabilityResponse(BaseModel):
+    available: bool
+    message: str
+    models: list[str] = []

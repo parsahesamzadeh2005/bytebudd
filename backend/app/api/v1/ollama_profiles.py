@@ -20,6 +20,7 @@ from app.schemas.ollama_profile import (
     OllamaProfileUpdate,
     OllamaProfileOut,
     ActivateRequest,
+    CheckAvailabilityResponse,
 )
 from app.services.ollama_profile_service import (
     fetch_models_from_host,
@@ -170,3 +171,33 @@ async def toggle_profile_active(
         return OllamaProfileOut.model_validate(profile)
     except Exception as exc:
         _handle_service_error(exc)
+
+
+@router.post("/{profile_id}/check-availability", response_model=CheckAvailabilityResponse)
+async def check_profile_availability(
+    profile_id: int,
+    db: AsyncSession = Depends(get_db),
+    _admin: User = Depends(get_admin_user),
+):
+    """
+    Test whether the Ollama host for a given profile is reachable.
+    Returns availability status and the list of models found. Admin only.
+    """
+    try:
+        profile = await get_profile(db, profile_id)
+    except Exception as exc:
+        _handle_service_error(exc)
+
+    try:
+        models = await fetch_models_from_host(profile.host_url)
+        return CheckAvailabilityResponse(
+            available=True,
+            message=f"Host is reachable. Found {len(models)} model(s).",
+            models=models,
+        )
+    except (HostUnreachableError, InvalidHostResponseError) as exc:
+        return CheckAvailabilityResponse(
+            available=False,
+            message=str(exc),
+            models=[],
+        )

@@ -61,12 +61,7 @@ export default function ConversationPage() {
       router.push("/databases");
       return;
     }
-    try {
-      const conv = (await conversationApi.create(databases[0].id)) as Conversation;
-      router.push(`/conversations/${conv.id}`);
-    } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to create conversation");
-    }
+    router.push("/conversations/new");
   }
 
   async function handleTitleChange(newTitle: string) {

@@ -1,8 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import { Pencil, Trash2, Loader2, Lock } from "lucide-react";
+import { Pencil, Trash2, Loader2, Lock, Wifi, WifiOff } from "lucide-react";
 import { OllamaProfile } from "@/types";
+import { ollamaProfileApi } from "@/lib/api";
+
+interface AvailabilityResult {
+  available: boolean;
+  message: string;
+  models: string[];
+}
 
 interface ProfileListProps {
   profiles: OllamaProfile[];
@@ -20,6 +27,28 @@ export function ProfileList({
   onToggleActive,
 }: ProfileListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
+  /** Per-profile availability check state */
+  const [checkingId, setCheckingId] = useState<number | null>(null);
+  const [availability, setAvailability] = useState<Record<number, AvailabilityResult>>({});
+
+  async function handleCheckAvailability(profile: OllamaProfile) {
+    setCheckingId(profile.id);
+    try {
+      const result = await ollamaProfileApi.checkAvailability(profile.id);
+      setAvailability((prev) => ({ ...prev, [profile.id]: result }));
+    } catch (err) {
+      setAvailability((prev) => ({
+        ...prev,
+        [profile.id]: {
+          available: false,
+          message: err instanceof Error ? err.message : "Check failed",
+          models: [],
+        },
+      }));
+    } finally {
+      setCheckingId(null);
+    }
+  }
 
   if (loading) {
     return (
@@ -55,6 +84,8 @@ export function ProfileList({
           {profiles.map((profile) => {
             const isEnvDefault = profile.id === 0;
             const isConfirmingDelete = confirmDeleteId === profile.id;
+            const isChecking = checkingId === profile.id;
+            const availResult = availability[profile.id];
 
             return (
               <tr key={profile.id} className="hover:bg-gray-50 transition-colors">
@@ -149,21 +180,56 @@ export function ProfileList({
                       </button>
                     </div>
                   ) : (
-                    <div className="flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => onEdit(profile)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        aria-label={`Edit ${profile.name}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(profile.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label={`Delete ${profile.name}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                    <div className="flex flex-col items-end gap-1.5">
+                      <div className="flex items-center gap-1">
+                        {/* Check Availability */}
+                        <button
+                          onClick={() => handleCheckAvailability(profile)}
+                          disabled={isChecking}
+                          title="Check if this profile's host is reachable"
+                          className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-40"
+                        >
+                          {isChecking ? (
+                            <Loader2 className="w-3 h-3 animate-spin" />
+                          ) : (
+                            <Wifi className="w-3 h-3" />
+                          )}
+                          {isChecking ? "Checking…" : "Check Availability"}
+                        </button>
+
+                        <button
+                          onClick={() => onEdit(profile)}
+                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          aria-label={`Edit ${profile.name}`}
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(profile.id)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          aria-label={`Delete ${profile.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {/* Availability result badge */}
+                      {availResult && (
+                        <div
+                          className={`flex items-start gap-1 text-xs rounded-lg px-2 py-1 max-w-[260px] ${
+                            availResult.available
+                              ? "bg-green-50 text-green-700 border border-green-200"
+                              : "bg-red-50 text-red-600 border border-red-200"
+                          }`}
+                        >
+                          {availResult.available ? (
+                            <Wifi className="w-3 h-3 mt-0.5 shrink-0" />
+                          ) : (
+                            <WifiOff className="w-3 h-3 mt-0.5 shrink-0" />
+                          )}
+                          <span className="leading-snug">{availResult.message}</span>
+                        </div>
+                      )}
                     </div>
                   )}
                 </td>

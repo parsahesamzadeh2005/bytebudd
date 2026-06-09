@@ -12,8 +12,6 @@ import {
   Trash2,
   ShieldCheck,
   ShieldOff,
-  ToggleLeft,
-  ToggleRight,
   Loader2,
   AlertCircle,
   X,
@@ -299,21 +297,28 @@ export default function AdminUsersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
-                          {/* Toggle active */}
-                          <button
-                            onClick={() => handleToggleActive(user)}
-                            disabled={busy || isMe}
-                            title={user.is_active ? "Disable account" : "Enable account"}
-                            className="p-1.5 rounded-lg transition-colors disabled:opacity-30 text-gray-400 hover:text-gray-700 hover:bg-gray-100"
-                          >
-                            {busy ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : user.is_active ? (
-                              <ToggleRight className="w-4 h-4 text-green-500" />
-                            ) : (
-                              <ToggleLeft className="w-4 h-4" />
-                            )}
-                          </button>
+                          {/* Toggle active — pill switch matching Ollama Profiles style */}
+                          {busy ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-gray-400 mx-1.5" />
+                          ) : (
+                            <button
+                              onClick={() => handleToggleActive(user)}
+                              disabled={isMe}
+                              title={user.is_active ? "Disable account" : "Enable account"}
+                              role="switch"
+                              aria-checked={user.is_active}
+                              aria-label={`${user.is_active ? "Disable" : "Enable"} ${user.email}`}
+                              className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-30 ${
+                                user.is_active ? "bg-blue-600" : "bg-gray-200"
+                              }`}
+                            >
+                              <span
+                                className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                                  user.is_active ? "translate-x-4" : "translate-x-0.5"
+                                }`}
+                              />
+                            </button>
+                          )}
 
                           {/* Toggle role */}
                           <button
