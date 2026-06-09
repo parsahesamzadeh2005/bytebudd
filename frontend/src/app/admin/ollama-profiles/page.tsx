@@ -68,9 +68,6 @@ export default function OllamaProfilesPage() {
     } finally {
       setLoading(false);
     }
-
-    // Check Ollama status in parallel (non-blocking)
-    checkOllamaStatus();
   }
 
   async function checkOllamaStatus() {

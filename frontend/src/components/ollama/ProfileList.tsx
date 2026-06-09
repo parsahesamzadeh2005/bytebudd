@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Pencil, Trash2, Loader2, Lock, Wifi, WifiOff } from "lucide-react";
 import { OllamaProfile } from "@/types";
 import { ollamaProfileApi } from "@/lib/api";
@@ -35,18 +35,6 @@ export function ProfileList({
   const [checkingIds, setCheckingIds] = useState<Set<number>>(new Set());
   /** Per-profile availability results */
   const [availability, setAvailability] = useState<Record<number, AvailabilityResult>>({});
-
-  // ── Auto-check all real profiles when the list first loads ──────────────
-  useEffect(() => {
-    if (loading || profiles.length === 0) return;
-
-    const realProfiles = profiles.filter((p) => p.id !== 0);
-    if (realProfiles.length === 0) return;
-
-    // Run all checks in parallel without blocking the UI
-    realProfiles.forEach((p) => checkAvailability(p, /* silent */ true));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loading]); // run once when loading transitions to false
 
   async function checkAvailability(profile: OllamaProfile, silent = false) {
     setCheckingIds((prev) => new Set(prev).add(profile.id));
