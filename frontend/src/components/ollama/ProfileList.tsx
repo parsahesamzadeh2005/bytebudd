@@ -37,11 +37,13 @@ export function ProfileList({
       const result = await ollamaProfileApi.checkAvailability(profile.id);
       setAvailability((prev) => ({ ...prev, [profile.id]: result }));
     } catch (err) {
+      // Network error or unexpected HTTP failure — show as unreachable
+      const msg = err instanceof Error ? err.message : "Check failed";
       setAvailability((prev) => ({
         ...prev,
         [profile.id]: {
           available: false,
-          message: err instanceof Error ? err.message : "Check failed",
+          message: `Unreachable: ${msg}`,
           models: [],
         },
       }));

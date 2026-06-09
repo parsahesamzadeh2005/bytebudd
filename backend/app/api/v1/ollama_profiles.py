@@ -183,11 +183,15 @@ async def check_profile_availability(
     Test whether the Ollama host for a given profile is reachable.
     Returns availability status and the list of models found. Admin only.
     """
+    # Fetch the profile — raise 404 if it genuinely doesn't exist in the DB
     try:
         profile = await get_profile(db, profile_id)
+    except ProfileNotFoundError as exc:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except Exception as exc:
-        _handle_service_error(exc)
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=str(exc))
 
+    # Probe the host — always return a structured response, never raise
     try:
         models = await fetch_models_from_host(profile.host_url)
         return CheckAvailabilityResponse(
@@ -195,9 +199,21 @@ async def check_profile_availability(
             message=f"Host is reachable. Found {len(models)} model(s).",
             models=models,
         )
-    except (HostUnreachableError, InvalidHostResponseError) as exc:
+    except HostUnreachableError as exc:
         return CheckAvailabilityResponse(
             available=False,
-            message=str(exc),
+            message=f"Unreachable: {exc}",
+            models=[],
+        )
+    except InvalidHostResponseError as exc:
+        return CheckAvailabilityResponse(
+            available=False,
+            message=f"Invalid response: {exc}",
+            models=[],
+        )
+    except Exception as exc:
+        return CheckAvailabilityResponse(
+            available=False,
+            message=f"Check failed: {exc}",
             models=[],
         )
