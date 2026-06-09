@@ -6,7 +6,7 @@ import { Plus, Cpu } from "lucide-react";
 import { isAuthenticated } from "@/lib/auth";
 import { authApi, ollamaProfileApi, conversationApi } from "@/lib/api";
 import { OllamaProfile, User, Conversation } from "@/types";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/layout/Sidebar";
 import { ProfileList } from "@/components/ollama/ProfileList";
 import { ProfileFormModal } from "@/components/ollama/ProfileFormModal";
 
@@ -22,6 +22,7 @@ export default function OllamaProfilesPage() {
   // Modal state
   const [modalOpen, setModalOpen] = useState(false);
   const [editingProfile, setEditingProfile] = useState<OllamaProfile | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -101,15 +102,23 @@ export default function OllamaProfilesPage() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         conversations={conversations}
         onNewConversation={handleNewConversation}
         user={user}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="max-w-5xl mx-auto px-6 py-8">
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 sticky top-0 z-10">
+          <SidebarToggle onClick={() => setSidebarOpen(true)} />
+          <h1 className="font-semibold text-gray-800 text-base">Ollama Profiles</h1>
+        </div>
+
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
           {/* Page header */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">

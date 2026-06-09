@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { conversationApi, dbApi, authApi, streamQuery } from "@/lib/api";
 import { Conversation, DBConnection, ChatMessage, SSEResultsEvent, User } from "@/types";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { MessageBubble } from "@/components/chat/MessageBubble";
 import { ProfileSelector } from "@/components/ollama/ProfileSelector";
@@ -31,6 +31,7 @@ export default function NewConversationPage() {
   const [selectedProfileId, setSelectedProfileId] = useState<number | null>(null);
   const [selectedModel, setSelectedModel] = useState<string | null>(null);
   const [profileReady, setProfileReady] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Once a conversation is created, hold its ID for subsequent messages
   const conversationIdRef = useRef<number | null>(null);
@@ -178,7 +179,7 @@ export default function NewConversationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-dvh flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
@@ -187,14 +188,16 @@ export default function NewConversationPage() {
   // No databases — prompt to connect one
   if (databases.length === 0) {
     return (
-      <div className="flex h-screen">
+      <div className="flex h-dvh overflow-hidden">
         <Sidebar
           conversations={allConversations}
           onNewConversation={() => router.push("/conversations/new")}
           onConversationsChange={setAllConversations}
           user={user}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
         />
-        <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 gap-4">
+        <main className="flex-1 flex flex-col items-center justify-center bg-gray-50 gap-4 px-4">
           <Database className="w-12 h-12 text-gray-300" />
           <p className="text-gray-500 text-sm">No database connected yet.</p>
           <button
@@ -210,22 +213,24 @@ export default function NewConversationPage() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         conversations={allConversations}
         onNewConversation={() => {
-          // Reset to a fresh blank state instead of navigating (avoids reload)
-          if (conversationIdRef.current === null) return; // already on /new with no messages
+          if (conversationIdRef.current === null) return;
           router.push("/conversations/new");
         }}
         onConversationsChange={setAllConversations}
         user={user}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <div className="flex-1 flex flex-col min-h-0">
         <TopNav
           title="New Conversation"
           dbConnection={selectedDb}
+          leftSlot={<SidebarToggle onClick={() => setSidebarOpen(true)} />}
         />
 
         {/* Chat area */}
@@ -244,7 +249,7 @@ export default function NewConversationPage() {
           </div>
 
           {/* Input area */}
-          <div className="border-t border-gray-200 bg-white p-4">
+          <div className="shrink-0 border-t border-gray-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
             <ProfileSelector
               initialProfileId={null}
               initialModel={null}
@@ -262,22 +267,23 @@ export default function NewConversationPage() {
               disabled={isStreaming}
             />
 
-            <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+            <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 items-end">
               <textarea
                 ref={inputRef}
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 disabled={isStreaming}
-                placeholder="Ask a question about your data... (Enter to send, Shift+Enter for new line)"
+                placeholder="Ask a question about your data…"
                 rows={1}
-                className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:opacity-50 min-h-[48px] max-h-32"
+                className="flex-1 resize-none rounded-xl border border-gray-300 px-3 sm:px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:opacity-50 min-h-[48px] max-h-32"
                 style={{ overflowY: "auto" }}
               />
               <button
                 type="submit"
                 disabled={isStreaming || !input.trim() || !profileReady}
-                className="w-11 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+                className="w-11 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0 touch-manipulation"
+                aria-label="Send message"
               >
                 {isStreaming ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -286,7 +292,7 @@ export default function NewConversationPage() {
                 )}
               </button>
             </form>
-            <p className="text-xs text-gray-400 mt-2 text-center">
+            <p className="text-xs text-gray-400 mt-2 text-center hidden sm:block">
               ByteBudd only runs read-only queries · Max 1000 rows
             </p>
           </div>

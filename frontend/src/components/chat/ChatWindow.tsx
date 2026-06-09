@@ -167,7 +167,7 @@ export function ChatWindow({
   return (
     <div className="flex flex-col h-full bg-gray-50">
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto py-4">
+      <div className="flex-1 overflow-y-auto py-2 sm:py-4">
         {messages.length === 0 ? (
           <EmptyState onExampleClick={(text) => setInput(text)} />
         ) : (
@@ -180,8 +180,8 @@ export function ChatWindow({
         )}
       </div>
 
-      {/* Input area */}
-      <div className="border-t border-gray-200 bg-white p-4">
+      {/* Input area — sticky at bottom */}
+      <div className="shrink-0 border-t border-gray-200 bg-white px-3 sm:px-4 py-3 sm:py-4">
         {/* Profile + model selector */}
         <ProfileSelector
           initialProfileId={initialProfileId}
@@ -191,35 +191,34 @@ export function ChatWindow({
               setSelectedProfileId(null);
               setSelectedModel(null);
               setProfileReady(false);
-              // Clear saved profile for this conversation
               conversationApi.saveProfile(conversationId, null, null).catch(() => {});
             } else {
               setSelectedProfileId(profileId);
               setSelectedModel(modelName);
               setProfileReady(true);
-              // Persist the new selection for this conversation
               conversationApi.saveProfile(conversationId, profileId, modelName).catch(() => {});
             }
           }}
           disabled={isLoading}
         />
 
-        <form onSubmit={handleSubmit} className="flex gap-3 items-end">
+        <form onSubmit={handleSubmit} className="flex gap-2 sm:gap-3 items-end">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={isLoading}
-            placeholder="Ask a question about your data... (Enter to send, Shift+Enter for new line)"
+            placeholder="Ask a question about your data…"
             rows={1}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:opacity-50 min-h-[48px] max-h-32"
+            className="flex-1 resize-none rounded-xl border border-gray-300 px-3 sm:px-4 py-3 text-sm text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition disabled:opacity-50 min-h-[48px] max-h-32"
             style={{ overflowY: "auto" }}
           />
           <button
             type="submit"
             disabled={isLoading || !input.trim() || !profileReady}
-            className="w-11 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0"
+            className="w-11 h-11 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-200 text-white rounded-xl flex items-center justify-center transition-colors shrink-0 touch-manipulation"
+            aria-label="Send message"
           >
             {isLoading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -228,7 +227,7 @@ export function ChatWindow({
             )}
           </button>
         </form>
-        <p className="text-xs text-gray-400 mt-2 text-center">
+        <p className="text-xs text-gray-400 mt-2 text-center hidden sm:block">
           ByteBudd only runs read-only queries · Max 1000 rows
         </p>
       </div>
@@ -245,19 +244,19 @@ function EmptyState({ onExampleClick }: { onExampleClick: (text: string) => void
   ];
 
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-8">
-      <div className="text-4xl mb-4">🤖</div>
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 sm:px-8">
+      <div className="text-3xl sm:text-4xl mb-3 sm:mb-4">🤖</div>
+      <h2 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
         Ask anything about your data
       </h2>
-      <p className="text-gray-500 text-sm mb-8 max-w-sm">
+      <p className="text-gray-500 text-sm mb-6 sm:mb-8 max-w-sm">
         ByteBudd converts your questions into safe, read-only SQL queries using AI.
       </p>
       <div className="grid gap-2 w-full max-w-md">
         {examples.map((example) => (
           <button
             key={example}
-            className="text-left text-sm px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors text-gray-600"
+            className="text-left text-sm px-3 sm:px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-colors text-gray-600 touch-manipulation"
             onClick={() => onExampleClick(example)}
           >
             &ldquo;{example}&rdquo;

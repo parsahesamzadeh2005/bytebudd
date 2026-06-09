@@ -9,9 +9,11 @@ interface TopNavProps {
   title: string;
   dbConnection?: DBConnection | null;
   onTitleChange?: (newTitle: string) => Promise<void>;
+  /** Hamburger button rendered on the left for mobile */
+  leftSlot?: React.ReactNode;
 }
 
-export function TopNav({ title, dbConnection, onTitleChange }: TopNavProps) {
+export function TopNav({ title, dbConnection, onTitleChange, leftSlot }: TopNavProps) {
   const [editing, setEditing] = useState(false);
   const [value, setValue] = useState(title);
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,10 @@ export function TopNav({ title, dbConnection, onTitleChange }: TopNavProps) {
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between gap-4">
+    <header className="bg-white border-b border-gray-200 px-3 sm:px-6 py-3 sm:py-4 flex items-center gap-2 sm:gap-4">
+      {/* Mobile hamburger slot */}
+      {leftSlot && <div className="shrink-0">{leftSlot}</div>}
+
       {/* Title — editable when onTitleChange is provided */}
       <div className="flex items-center gap-2 min-w-0 flex-1">
         {editing ? (
@@ -65,7 +70,7 @@ export function TopNav({ title, dbConnection, onTitleChange }: TopNavProps) {
                 if (e.key === "Escape") cancel();
               }}
               disabled={saving}
-              className="flex-1 min-w-0 font-semibold text-gray-800 text-lg bg-gray-50 border border-blue-400 rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+              className="flex-1 min-w-0 font-semibold text-gray-800 text-base sm:text-lg bg-gray-50 border border-blue-400 rounded-lg px-3 py-1 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
             />
             <button
               onClick={commit}
@@ -86,11 +91,11 @@ export function TopNav({ title, dbConnection, onTitleChange }: TopNavProps) {
           </div>
         ) : (
           <div className="flex items-center gap-2 min-w-0 group">
-            <h1 className="font-semibold text-gray-800 text-lg truncate">{title}</h1>
+            <h1 className="font-semibold text-gray-800 text-base sm:text-lg truncate">{title}</h1>
             {onTitleChange && (
               <button
                 onClick={() => setEditing(true)}
-                className="p-1 text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all rounded"
+                className="p-1 text-gray-300 hover:text-gray-500 opacity-0 group-hover:opacity-100 transition-all rounded shrink-0"
                 title="Rename conversation"
               >
                 <Pencil className="w-3.5 h-3.5" />
@@ -100,11 +105,13 @@ export function TopNav({ title, dbConnection, onTitleChange }: TopNavProps) {
         )}
       </div>
 
-      {/* DB badge */}
+      {/* DB badge — hide label text on small screens, show icon + type only */}
       {dbConnection && (
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           <Database className="w-4 h-4 text-gray-400" />
-          <span className="text-sm text-gray-600">{dbConnection.name}</span>
+          <span className="hidden sm:inline text-sm text-gray-600 truncate max-w-[120px]">
+            {dbConnection.name}
+          </span>
           <span
             className={`text-xs font-medium px-2 py-0.5 rounded-full ${dbTypeColor(
               dbConnection.db_type

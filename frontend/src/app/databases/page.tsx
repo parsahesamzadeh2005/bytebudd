@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { dbApi, conversationApi, authApi } from "@/lib/api";
 import { DBConnection, DBConnectionCreate, Conversation, User } from "@/types";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import {
   Database,
@@ -46,7 +46,7 @@ export default function DatabasesPage() {
   const [schemaDb, setSchemaDb] = useState<DBConnection | null>(null);
   const [schemaContent, setSchemaContent] = useState<string | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
-
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login");
@@ -141,20 +141,29 @@ export default function DatabasesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-dvh flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen">
-      <Sidebar conversations={conversations} onNewConversation={handleNewConversation} user={user} />
+    <div className="flex h-dvh overflow-hidden">
+      <Sidebar
+        conversations={conversations}
+        onNewConversation={handleNewConversation}
+        user={user}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
       <div className="flex-1 flex flex-col min-h-0">
-        <TopNav title="Database Connections" />
+        <TopNav
+          title="Database Connections"
+          leftSlot={<SidebarToggle onClick={() => setSidebarOpen(true)} />}
+        />
 
-        <main className="flex-1 overflow-y-auto p-6">
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6">
           {/* Add button */}
           <div className="flex justify-between items-center mb-6">
             <p className="text-gray-500 text-sm">
@@ -267,35 +276,38 @@ function DBCard({
   onConnect: () => void;
 }) {
   return (
-    <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
-      <div className="flex items-start justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center">
+    <div className="bg-white border border-gray-200 rounded-2xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
+      {/* Top row: info + action buttons */}
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+        {/* DB info */}
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center shrink-0">
             <Database className="w-5 h-5 text-blue-600" />
           </div>
-          <div>
-            <h3 className="font-semibold text-gray-900">{db.name}</h3>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${dbTypeColor(db.db_type)}`}>
+          <div className="min-w-0">
+            <h3 className="font-semibold text-gray-900 truncate">{db.name}</h3>
+            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full shrink-0 ${dbTypeColor(db.db_type)}`}>
                 {dbTypeLabel(db.db_type)}
               </span>
               {db.host && (
-                <span className="text-xs text-gray-400">
+                <span className="text-xs text-gray-400 truncate">
                   {db.host}:{db.port} / {db.database_name}
                 </span>
               )}
               {db.db_type === "sqlite" && (
-                <span className="text-xs text-gray-400">{db.database_name}</span>
+                <span className="text-xs text-gray-400 truncate">{db.database_name}</span>
               )}
             </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Action buttons — wrap on mobile */}
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
             onClick={onTest}
             disabled={testing}
-            className="text-xs px-3 py-1.5 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5"
+            className="text-xs px-3 py-1.5 border border-gray-300 hover:bg-gray-50 rounded-lg transition-colors disabled:opacity-50 flex items-center gap-1.5 touch-manipulation"
           >
             {testing ? (
               <>
@@ -309,7 +321,7 @@ function DBCard({
 
           <button
             onClick={onConnect}
-            className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            className="text-xs px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors touch-manipulation"
           >
             Chat
           </button>
@@ -317,7 +329,7 @@ function DBCard({
           <button
             onClick={onEdit}
             title="Edit connection"
-            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors touch-manipulation"
           >
             <Edit2 className="w-4 h-4" />
           </button>
@@ -325,7 +337,7 @@ function DBCard({
           <button
             onClick={onViewSchema}
             title="View schema"
-            className={`p-1.5 rounded-lg transition-colors ${
+            className={`p-1.5 rounded-lg transition-colors touch-manipulation ${
               schemaActive
                 ? "text-green-600 bg-green-50"
                 : "text-gray-400 hover:text-green-600 hover:bg-green-50"
@@ -337,7 +349,7 @@ function DBCard({
           <button
             onClick={onDelete}
             title="Delete connection"
-            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors touch-manipulation"
           >
             <Trash2 className="w-4 h-4" />
           </button>
@@ -358,7 +370,7 @@ function DBCard({
           ) : (
             <XCircle className="w-4 h-4 shrink-0" />
           )}
-          {testResult.message}
+          <span className="break-words">{testResult.message}</span>
         </div>
       )}
     </div>
@@ -413,7 +425,7 @@ function AddConnectionForm({
       <h2 className="font-semibold text-gray-900 mb-4">Add Database Connection</h2>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           {/* Name */}
           <FormField label="Connection Name" required>
             <input
@@ -465,8 +477,8 @@ function AddConnectionForm({
           </FormField>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
                 <FormField label="Host" required>
                   <input
                     type="text"
@@ -499,7 +511,7 @@ function AddConnectionForm({
               />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label="Username">
                 <input
                   type="text"
@@ -521,7 +533,7 @@ function AddConnectionForm({
             </div>
 
             {isMssql && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField label="Instance Name">
                   <input
                     type="text"
@@ -654,8 +666,8 @@ function EditConnectionForm({
           </FormField>
         ) : (
           <>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="col-span-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="sm:col-span-2">
                 <FormField label="Host" required>
                   <input
                     type="text"
@@ -687,7 +699,7 @@ function EditConnectionForm({
               />
             </FormField>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <FormField label="Username">
                 <input
                   type="text"
@@ -709,7 +721,7 @@ function EditConnectionForm({
             </div>
 
             {isMssql && (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <FormField label="Instance Name">
                   <input
                     type="text"

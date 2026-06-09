@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { conversationApi, dbApi, authApi } from "@/lib/api";
 import { Conversation, ConversationDetail, DBConnection, ChatMessage } from "@/types";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/layout/Sidebar";
 import { TopNav } from "@/components/layout/TopNav";
 import { ChatWindow } from "@/components/chat/ChatWindow";
 
@@ -21,6 +21,7 @@ export default function ConversationPage() {
   const [error, setError] = useState<string | null>(null);
   const [databases, setDatabases] = useState<DBConnection[]>([]);
   const [user, setUser] = useState<import("@/types").User | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -79,7 +80,7 @@ export default function ConversationPage() {
       try {
         results = JSON.parse(msg.result_data);
       } catch {
-        // malformed stored data — skip silently, results just won't show
+        // malformed stored data — skip silently
       }
     }
     return {
@@ -93,7 +94,7 @@ export default function ConversationPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-dvh flex items-center justify-center bg-gray-50">
         <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -101,26 +102,29 @@ export default function ConversationPage() {
 
   if (!conversation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 text-red-600">
+      <div className="min-h-dvh flex items-center justify-center bg-gray-50 text-red-600">
         {error || "Conversation not found"}
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         conversations={allConversations}
         onNewConversation={handleNewConversation}
         onConversationsChange={setAllConversations}
         user={user}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      <div className="flex-1 flex flex-col min-h-0">
+      <div className="flex-1 flex flex-col min-h-0 min-w-0">
         <TopNav
           title={conversation.title}
           dbConnection={dbConnection}
           onTitleChange={handleTitleChange}
+          leftSlot={<SidebarToggle onClick={() => setSidebarOpen(true)} />}
         />
 
         {dbConnection ? (
@@ -134,7 +138,7 @@ export default function ConversationPage() {
             />
           </div>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-gray-500 px-4 text-center">
             <p>No database connected to this conversation.</p>
           </div>
         )}

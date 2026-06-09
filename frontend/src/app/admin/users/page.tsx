@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { isAuthenticated } from "@/lib/auth";
 import { authApi, adminApi, conversationApi } from "@/lib/api";
 import { User, Conversation } from "@/types";
-import { Sidebar } from "@/components/layout/Sidebar";
+import { Sidebar, SidebarToggle } from "@/components/layout/Sidebar";
 import {
   Users,
   Plus,
@@ -42,6 +42,7 @@ export default function AdminUsersPage() {
 
   // Per-row busy tracking
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated()) { router.push("/login"); return; }
@@ -126,23 +127,31 @@ export default function AdminUsersPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+      <div className="min-h-dvh flex items-center justify-center bg-gray-50">
         <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
       </div>
     );
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-dvh overflow-hidden">
       <Sidebar
         conversations={conversations}
         onNewConversation={() => router.push("/")}
         onConversationsChange={setConversations}
         user={me}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
       <main className="flex-1 overflow-y-auto bg-gray-50">
-        <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200 sticky top-0 z-10">
+          <SidebarToggle onClick={() => setSidebarOpen(true)} />
+          <h1 className="font-semibold text-gray-800 text-base">User Management</h1>
+        </div>
+
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
 
           {/* Page header */}
           <div className="flex items-center justify-between mb-6">
@@ -253,7 +262,8 @@ export default function AdminUsersPage() {
 
           {/* Users table */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">
-            <table className="w-full text-sm">
+            <div className="overflow-x-auto">
+            <table className="w-full text-sm min-w-[480px]">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
                   <th className="text-left px-4 py-3 font-medium text-gray-600">Email</th>
@@ -346,6 +356,7 @@ export default function AdminUsersPage() {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
 
         </div>

@@ -14,6 +14,7 @@ import {
   Check,
   X,
   Users,
+  Menu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { logout } from "@/lib/auth";
@@ -26,6 +27,9 @@ interface SidebarProps {
   onNewConversation: () => void;
   onConversationsChange?: (conversations: Conversation[]) => void;
   user?: User | null;
+  /** Externally controlled open state for mobile (used by page-level hamburger button) */
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 export function Sidebar({
@@ -33,6 +37,8 @@ export function Sidebar({
   onNewConversation,
   onConversationsChange,
   user,
+  isOpen,
+  onClose,
 }: SidebarProps) {
   const pathname = usePathname();
   const [renamingId, setRenamingId] = useState<number | null>(null);
@@ -79,24 +85,47 @@ export function Sidebar({
     setRenamingId(null);
   }
 
-  return (
+  function handleNavClick() {
+    // Close sidebar on mobile after navigation
+    onClose?.();
+  }
+
+  const sidebarContent = (
     <aside className="w-64 bg-gray-900 text-white flex flex-col h-full">
       {/* Logo */}
-      <div className="p-4 border-b border-gray-700">
+      <div className="p-4 border-b border-gray-700 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
             <Bot className="w-5 h-5 text-white" />
           </div>
           <span className="font-bold text-lg">ByteBudd</span>
         </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={onClose}
+          className="lg:hidden p-1 text-gray-400 hover:text-white rounded"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5" />
+        </button>
       </div>
 
       {/* Navigation */}
       <nav className="p-3 border-b border-gray-700">
-        <NavLink href="/" icon={<MessageSquare className="w-4 h-4" />} active={pathname === "/"}>
+        <NavLink
+          href="/"
+          icon={<MessageSquare className="w-4 h-4" />}
+          active={pathname === "/"}
+          onClick={handleNavClick}
+        >
           Conversations
         </NavLink>
-        <NavLink href="/databases" icon={<Database className="w-4 h-4" />} active={pathname === "/databases"}>
+        <NavLink
+          href="/databases"
+          icon={<Database className="w-4 h-4" />}
+          active={pathname === "/databases"}
+          onClick={handleNavClick}
+        >
           Databases
         </NavLink>
         {user?.role === "admin" && (
@@ -105,6 +134,7 @@ export function Sidebar({
               href="/admin/ollama-profiles"
               icon={<Cpu className="w-4 h-4" />}
               active={pathname.startsWith("/admin/ollama-profiles")}
+              onClick={handleNavClick}
             >
               Ollama Profiles
             </NavLink>
@@ -112,6 +142,7 @@ export function Sidebar({
               href="/admin/users"
               icon={<Users className="w-4 h-4" />}
               active={pathname.startsWith("/admin/users")}
+              onClick={handleNavClick}
             >
               User Management
             </NavLink>
@@ -122,7 +153,10 @@ export function Sidebar({
       {/* New conversation button */}
       <div className="p-3">
         <button
-          onClick={onNewConversation}
+          onClick={() => {
+            onNewConversation();
+            onClose?.();
+          }}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 hover:bg-blue-700 rounded-lg transition-colors"
         >
           <Plus className="w-4 h-4" />
@@ -179,6 +213,7 @@ export function Sidebar({
                   <>
                     <Link
                       href={`/conversations/${conv.id}`}
+                      onClick={handleNavClick}
                       className="flex items-center gap-2 flex-1 min-w-0"
                     >
                       <MessageSquare className="w-3.5 h-3.5 shrink-0 text-gray-400" />
@@ -231,6 +266,42 @@ export function Sidebar({
       </div>
     </aside>
   );
+
+  return (
+    <>
+      {/* Desktop sidebar — always visible on lg+ */}
+      <div className="hidden lg:flex h-full w-64 shrink-0">{sidebarContent}</div>
+
+      {/* Mobile sidebar — slide-in overlay */}
+      {isOpen && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="lg:hidden fixed inset-0 z-40 bg-black/50"
+            onClick={onClose}
+            aria-hidden="true"
+          />
+          {/* Drawer */}
+          <div className="lg:hidden fixed inset-y-0 left-0 z-50 flex w-64">
+            {sidebarContent}
+          </div>
+        </>
+      )}
+    </>
+  );
+}
+
+/** Hamburger button — rendered by the page, placed in the mobile top bar */
+export function SidebarToggle({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="lg:hidden p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+      aria-label="Open sidebar"
+    >
+      <Menu className="w-5 h-5" />
+    </button>
+  );
 }
 
 function NavLink({
@@ -238,15 +309,18 @@ function NavLink({
   icon,
   active,
   children,
+  onClick,
 }: {
   href: string;
   icon: React.ReactNode;
   active: boolean;
   children: React.ReactNode;
+  onClick?: () => void;
 }) {
   return (
     <Link
       href={href}
+      onClick={onClick}
       className={cn(
         "flex items-center gap-2 px-3 py-2 text-sm rounded-lg mb-1 transition-colors",
         active
