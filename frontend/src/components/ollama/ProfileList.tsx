@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Pencil, Trash2, Loader2, Lock, Wifi, WifiOff } from "lucide-react";
 import { OllamaProfile } from "@/types";
-import { ollamaProfileApi } from "@/lib/api";
+import { ollamaProfileApi, ollamaApi } from "@/lib/api";
 
 interface AvailabilityResult {
   available: boolean;
@@ -17,9 +17,6 @@ interface ProfileListProps {
   onEdit: (profile: OllamaProfile) => void;
   onDelete: (profile: OllamaProfile) => void;
   onToggleActive: (profile: OllamaProfile) => void;
-  /** Availability of the Environment Default (id=0) — provided by the parent
-   *  which already checks ollamaApi.status() on mount. */
-  envDefaultAvailable?: boolean | null;
 }
 
 export function ProfileList({
@@ -28,27 +25,31 @@ export function ProfileList({
   onEdit,
   onDelete,
   onToggleActive,
-  envDefaultAvailable,
 }: ProfileListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  /** Profiles currently being checked (set of ids) */
   const [checkingIds, setCheckingIds] = useState<Set<number>>(new Set());
-  /** Per-profile availability results */
   const [availability, setAvailability] = useState<Record<number, AvailabilityResult>>({});
 
-  async function checkAvailability(profile: OllamaProfile, silent = false) {
+  async function checkAvailability(profile: OllamaProfile) {
     setCheckingIds((prev) => new Set(prev).add(profile.id));
     try {
-      const result = await ollamaProfileApi.checkAvailability(profile.id);
-      setAvailability((prev) => ({ ...prev, [profile.id]: result }));
-    } catch (err) {
-      if (!silent) {
-        const msg = err instanceof Error ? err.message : "Check failed";
+      if (profile.id === 0) {
+        // Environment Default uses the global Ollama status endpoint
+        const status = await ollamaApi.status();
         setAvailability((prev) => ({
           ...prev,
-          [profile.id]: { available: false, message: `Unreachable: ${msg}`, models: [] },
+          [0]: { available: status.available, message: "", models: [] },
         }));
+      } else {
+        const result = await ollamaProfileApi.checkAvailability(profile.id);
+        setAvailability((prev) => ({ ...prev, [profile.id]: result }));
       }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Check failed";
+      setAvailability((prev) => ({
+        ...prev,
+        [profile.id]: { available: false, message: `Unreachable: ${msg}`, models: [] },
+      }));
     } finally {
       setCheckingIds((prev) => {
         const next = new Set(prev);
@@ -58,7 +59,6 @@ export function ProfileList({
     }
   }
 
-  // ── Loading skeleton ─────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
@@ -95,11 +95,7 @@ export function ProfileList({
             const isEnvDefault = profile.id === 0;
             const isConfirmingDelete = confirmDeleteId === profile.id;
             const isChecking = checkingIds.has(profile.id);
-            const availResult = isEnvDefault
-              ? envDefaultAvailable == null
-                ? null
-                : { available: envDefaultAvailable, message: "", models: [] }
-              : availability[profile.id] ?? null;
+            const availResult = availability[profile.id] ?? null;
 
             return (
               <tr key={profile.id} className="hover:bg-gray-50 transition-colors">
@@ -194,9 +190,7 @@ export function ProfileList({
 
                 {/* Actions */}
                 <td className="px-4 py-3 text-right">
-                  {isEnvDefault ? (
-                    <span className="text-xs text-gray-400">—</span>
-                  ) : isConfirmingDelete ? (
+                  {isConfirmingDelete ? (
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-gray-500">Delete?</span>
                       <button
@@ -214,7 +208,7 @@ export function ProfileList({
                     </div>
                   ) : (
                     <div className="flex items-center justify-end gap-1">
-                      {/* Re-check button */}
+                      {/* Re-check availability — same for all profiles including env default */}
                       <button
                         onClick={() => checkAvailability(profile)}
                         disabled={isChecking}
@@ -226,20 +220,24 @@ export function ProfileList({
                           : <Wifi className="w-3.5 h-3.5" />}
                       </button>
 
-                      <button
-                        onClick={() => onEdit(profile)}
-                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        aria-label={`Edit ${profile.name}`}
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => setConfirmDeleteId(profile.id)}
-                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        aria-label={`Delete ${profile.name}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
+                      {!isEnvDefault && (
+                        <>
+                          <button
+                            onClick={() => onEdit(profile)}
+                            className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            aria-label={`Edit ${profile.name}`}
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => setConfirmDeleteId(profile.id)}
+                            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            aria-label={`Delete ${profile.name}`}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                 </td>
