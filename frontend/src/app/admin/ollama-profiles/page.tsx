@@ -219,7 +219,9 @@ export default function OllamaProfilesPage() {
               <div className="flex items-start gap-3 flex-1 min-w-0">
                 {statusLoading ? (
                   <Loader2 className="w-5 h-5 text-gray-400 animate-spin mt-0.5 shrink-0" />
-                ) : ollamaStatus?.available ? (
+                ) : ollamaStatus === null ? (
+                  <Wifi className="w-5 h-5 text-gray-300 mt-0.5 shrink-0" />
+                ) : ollamaStatus.available ? (
                   <Wifi className="w-5 h-5 text-green-500 mt-0.5 shrink-0" />
                 ) : (
                   <WifiOff className="w-5 h-5 text-red-400 mt-0.5 shrink-0" />
@@ -229,7 +231,9 @@ export default function OllamaProfilesPage() {
                     Ollama —{" "}
                     {statusLoading
                       ? "Checking…"
-                      : ollamaStatus?.available
+                      : ollamaStatus === null
+                      ? "Not checked"
+                      : ollamaStatus.available
                       ? "Available"
                       : "Unavailable"}
                   </p>
@@ -304,9 +308,10 @@ export default function OllamaProfilesPage() {
                   <button
                     onClick={checkOllamaStatus}
                     disabled={statusLoading}
-                    className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-green-600 hover:bg-green-700 disabled:bg-green-400 text-white font-medium rounded-lg transition-colors"
                   >
-                    Refresh
+                    {statusLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Wifi className="w-3 h-3" />}
+                    {statusLoading ? "Checking…" : "Check"}
                   </button>
                   <button
                     onClick={handlePullModel}
