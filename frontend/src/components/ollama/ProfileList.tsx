@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pencil, Trash2, Loader2, Lock, Wifi, WifiOff } from "lucide-react";
 import { OllamaProfile } from "@/types";
 import { ollamaProfileApi } from "@/lib/api";
@@ -17,6 +17,9 @@ interface ProfileListProps {
   onEdit: (profile: OllamaProfile) => void;
   onDelete: (profile: OllamaProfile) => void;
   onToggleActive: (profile: OllamaProfile) => void;
+  /** Availability of the Environment Default (id=0) — provided by the parent
+   *  which already checks ollamaApi.status() on mount. */
+  envDefaultAvailable?: boolean | null;
 }
 
 export function ProfileList({
@@ -25,33 +28,49 @@ export function ProfileList({
   onEdit,
   onDelete,
   onToggleActive,
+  envDefaultAvailable,
 }: ProfileListProps) {
   const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null);
-  /** Per-profile availability check state */
-  const [checkingId, setCheckingId] = useState<number | null>(null);
+  /** Profiles currently being checked (set of ids) */
+  const [checkingIds, setCheckingIds] = useState<Set<number>>(new Set());
+  /** Per-profile availability results */
   const [availability, setAvailability] = useState<Record<number, AvailabilityResult>>({});
 
-  async function handleCheckAvailability(profile: OllamaProfile) {
-    setCheckingId(profile.id);
+  // ── Auto-check all real profiles when the list first loads ──────────────
+  useEffect(() => {
+    if (loading || profiles.length === 0) return;
+
+    const realProfiles = profiles.filter((p) => p.id !== 0);
+    if (realProfiles.length === 0) return;
+
+    // Run all checks in parallel without blocking the UI
+    realProfiles.forEach((p) => checkAvailability(p, /* silent */ true));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading]); // run once when loading transitions to false
+
+  async function checkAvailability(profile: OllamaProfile, silent = false) {
+    setCheckingIds((prev) => new Set(prev).add(profile.id));
     try {
       const result = await ollamaProfileApi.checkAvailability(profile.id);
       setAvailability((prev) => ({ ...prev, [profile.id]: result }));
     } catch (err) {
-      // Network error or unexpected HTTP failure — show as unreachable
-      const msg = err instanceof Error ? err.message : "Check failed";
-      setAvailability((prev) => ({
-        ...prev,
-        [profile.id]: {
-          available: false,
-          message: `Unreachable: ${msg}`,
-          models: [],
-        },
-      }));
+      if (!silent) {
+        const msg = err instanceof Error ? err.message : "Check failed";
+        setAvailability((prev) => ({
+          ...prev,
+          [profile.id]: { available: false, message: `Unreachable: ${msg}`, models: [] },
+        }));
+      }
     } finally {
-      setCheckingId(null);
+      setCheckingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(profile.id);
+        return next;
+      });
     }
   }
 
+  // ── Loading skeleton ─────────────────────────────────────────────────────
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16 text-gray-400">
@@ -78,7 +97,8 @@ export function ProfileList({
             <th className="text-left px-4 py-3 font-medium text-gray-600">Name</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Host URL</th>
             <th className="text-left px-4 py-3 font-medium text-gray-600">Models</th>
-            <th className="text-left px-4 py-3 font-medium text-gray-600">Status</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">Active</th>
+            <th className="text-left px-4 py-3 font-medium text-gray-600">Host</th>
             <th className="text-right px-4 py-3 font-medium text-gray-600">Actions</th>
           </tr>
         </thead>
@@ -86,8 +106,12 @@ export function ProfileList({
           {profiles.map((profile) => {
             const isEnvDefault = profile.id === 0;
             const isConfirmingDelete = confirmDeleteId === profile.id;
-            const isChecking = checkingId === profile.id;
-            const availResult = availability[profile.id];
+            const isChecking = checkingIds.has(profile.id);
+            const availResult = isEnvDefault
+              ? envDefaultAvailable == null
+                ? null
+                : { available: envDefaultAvailable, message: "", models: [] }
+              : availability[profile.id] ?? null;
 
             return (
               <tr key={profile.id} className="hover:bg-gray-50 transition-colors">
@@ -132,7 +156,7 @@ export function ProfileList({
                   </div>
                 </td>
 
-                {/* Status toggle */}
+                {/* Active toggle */}
                 <td className="px-4 py-3">
                   {isEnvDefault ? (
                     <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
@@ -158,6 +182,28 @@ export function ProfileList({
                   )}
                 </td>
 
+                {/* Host availability badge */}
+                <td className="px-4 py-3">
+                  {isChecking ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-400">
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                      Checking…
+                    </span>
+                  ) : availResult === null ? (
+                    <span className="text-xs text-gray-300">—</span>
+                  ) : availResult.available ? (
+                    <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                      <Wifi className="w-3 h-3" />
+                      Reachable
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                      <WifiOff className="w-3 h-3" />
+                      Unreachable
+                    </span>
+                  )}
+                </td>
+
                 {/* Actions */}
                 <td className="px-4 py-3 text-right">
                   {isEnvDefault ? (
@@ -166,10 +212,7 @@ export function ProfileList({
                     <div className="flex items-center justify-end gap-2">
                       <span className="text-xs text-gray-500">Delete?</span>
                       <button
-                        onClick={() => {
-                          setConfirmDeleteId(null);
-                          onDelete(profile);
-                        }}
+                        onClick={() => { setConfirmDeleteId(null); onDelete(profile); }}
                         className="text-xs text-red-600 hover:text-red-700 font-medium"
                       >
                         Yes
@@ -182,56 +225,33 @@ export function ProfileList({
                       </button>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-end gap-1.5">
-                      <div className="flex items-center gap-1">
-                        {/* Check Availability */}
-                        <button
-                          onClick={() => handleCheckAvailability(profile)}
-                          disabled={isChecking}
-                          title="Check if this profile's host is reachable"
-                          className="flex items-center gap-1 px-2 py-1 text-xs border border-gray-200 rounded-lg text-gray-500 hover:text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors disabled:opacity-40"
-                        >
-                          {isChecking ? (
-                            <Loader2 className="w-3 h-3 animate-spin" />
-                          ) : (
-                            <Wifi className="w-3 h-3" />
-                          )}
-                          {isChecking ? "Checking…" : "Check Availability"}
-                        </button>
+                    <div className="flex items-center justify-end gap-1">
+                      {/* Re-check button */}
+                      <button
+                        onClick={() => checkAvailability(profile)}
+                        disabled={isChecking}
+                        title="Re-check availability"
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-40"
+                      >
+                        {isChecking
+                          ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          : <Wifi className="w-3.5 h-3.5" />}
+                      </button>
 
-                        <button
-                          onClick={() => onEdit(profile)}
-                          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          aria-label={`Edit ${profile.name}`}
-                        >
-                          <Pencil className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDeleteId(profile.id)}
-                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          aria-label={`Delete ${profile.name}`}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-
-                      {/* Availability result badge */}
-                      {availResult && (
-                        <div
-                          className={`flex items-start gap-1 text-xs rounded-lg px-2 py-1 max-w-[260px] ${
-                            availResult.available
-                              ? "bg-green-50 text-green-700 border border-green-200"
-                              : "bg-red-50 text-red-600 border border-red-200"
-                          }`}
-                        >
-                          {availResult.available ? (
-                            <Wifi className="w-3 h-3 mt-0.5 shrink-0" />
-                          ) : (
-                            <WifiOff className="w-3 h-3 mt-0.5 shrink-0" />
-                          )}
-                          <span className="leading-snug">{availResult.message}</span>
-                        </div>
-                      )}
+                      <button
+                        onClick={() => onEdit(profile)}
+                        className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        aria-label={`Edit ${profile.name}`}
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setConfirmDeleteId(profile.id)}
+                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        aria-label={`Delete ${profile.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
                 </td>

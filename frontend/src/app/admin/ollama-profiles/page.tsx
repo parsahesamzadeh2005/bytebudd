@@ -355,6 +355,7 @@ export default function OllamaProfilesPage() {
             onEdit={handleOpenEdit}
             onDelete={handleDelete}
             onToggleActive={handleToggleActive}
+            envDefaultAvailable={ollamaStatus == null ? null : ollamaStatus.available}
           />
 
           {/* Info note */}
