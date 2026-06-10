@@ -21,6 +21,7 @@ export interface DBConnection {
   is_active: boolean;
   instance_name?: string | null;
   odbc_driver?: string | null;
+  context_description?: string | null;
 }
 
 export interface DBConnectionCreate {

@@ -103,6 +103,7 @@ async def run_query_pipeline(
             schema=schema,
             dialect=dialect,
             current_user_id=user_id,
+            db_context=db_conn.context_description,
         )
 
         # Step 4: Call the LLM

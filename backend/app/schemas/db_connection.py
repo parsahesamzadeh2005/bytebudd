@@ -43,8 +43,13 @@ class DBConnectionOut(BaseModel):
     is_active: bool
     instance_name: str | None
     odbc_driver: str | None
+    context_description: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class DBConnectionContextUpdate(BaseModel):
+    context_description: str | None = Field(None, max_length=10_000)
 
 
 class ConnectionTestResult(BaseModel):

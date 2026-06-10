@@ -17,6 +17,7 @@ from app.schemas.db_connection import (
     DBConnectionCreate,
     DBConnectionOut,
     DBConnectionUpdate,
+    DBConnectionContextUpdate,
     ConnectionTestResult,
 )
 
@@ -146,6 +147,21 @@ async def get_schema(
     connector = get_connector(conn)
     schema = await connector.get_schema()
     return {"schema": schema}
+
+
+@router.patch("/{conn_id}/context", response_model=DBConnectionOut)
+async def update_context(
+    conn_id: int,
+    payload: DBConnectionContextUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Save or clear the user-provided context description for a connection."""
+    conn = await _get_user_connection(conn_id, current_user.id, db)
+    conn.context_description = payload.context_description
+    await db.flush()
+    await db.refresh(conn)
+    return DBConnectionOut.model_validate(conn)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────

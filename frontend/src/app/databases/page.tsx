@@ -17,6 +17,7 @@ import {
   Edit2,
   Code2,
   X,
+  BookOpen,
 } from "lucide-react";
 import { dbTypeColor, dbTypeLabel } from "@/lib/utils";
 
@@ -47,6 +48,7 @@ export default function DatabasesPage() {
   const [schemaContent, setSchemaContent] = useState<string | null>(null);
   const [schemaLoading, setSchemaLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [contextDb, setContextDb] = useState<DBConnection | null>(null);
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push("/login");
@@ -133,6 +135,12 @@ export default function DatabasesPage() {
     setEditingDb(null);
   }
 
+  async function handleContextSave(id: number, context: string | null) {
+    const updated = await dbApi.updateContext(id, context) as DBConnection;
+    setDatabases((prev) => prev.map((d) => (d.id === id ? updated : d)));
+    setContextDb(null);
+  }
+
   async function handleNewConversation() {
     if (databases.length === 0) return;
     const conv = (await conversationApi.create(databases[0].id)) as Conversation;
@@ -205,6 +213,8 @@ export default function DatabasesPage() {
                     }}
                     onViewSchema={() => handleViewSchema(db)}
                     schemaActive={schemaDb?.id === db.id}
+                    onContext={() => setContextDb(contextDb?.id === db.id ? null : db)}
+                    contextActive={contextDb?.id === db.id}
                     onConnect={async () => {
                       const conv = (await conversationApi.create(db.id, `Chat with ${db.name}`)) as Conversation;
                       router.push(`/conversations/${conv.id}`);
@@ -242,6 +252,13 @@ export default function DatabasesPage() {
                       </div>
                     </div>
                   )}
+                  {contextDb?.id === db.id && (
+                    <ContextEditor
+                      db={contextDb}
+                      onSave={handleContextSave}
+                      onCancel={() => setContextDb(null)}
+                    />
+                  )}
                 </div>
               ))}
             </div>
@@ -263,6 +280,8 @@ function DBCard({
   onEdit,
   onViewSchema,
   schemaActive,
+  onContext,
+  contextActive,
   onConnect,
 }: {
   db: DBConnection;
@@ -273,6 +292,8 @@ function DBCard({
   onEdit: () => void;
   onViewSchema: () => void;
   schemaActive: boolean;
+  onContext: () => void;
+  contextActive: boolean;
   onConnect: () => void;
 }) {
   return (
@@ -344,6 +365,18 @@ function DBCard({
             }`}
           >
             <Code2 className="w-4 h-4" />
+          </button>
+
+          <button
+            onClick={onContext}
+            title="Edit context description"
+            className={`p-1.5 rounded-lg transition-colors touch-manipulation ${
+              contextActive
+                ? "text-purple-600 bg-purple-50"
+                : "text-gray-400 hover:text-purple-600 hover:bg-purple-50"
+            }`}
+          >
+            <BookOpen className="w-4 h-4" />
           </button>
 
           <button
@@ -788,6 +821,73 @@ function FormField({
         {label} {required && <span className="text-red-500">*</span>}
       </label>
       {children}
+    </div>
+  );
+}
+
+function ContextEditor({
+  db,
+  onSave,
+  onCancel,
+}: {
+  db: DBConnection;
+  onSave: (id: number, context: string | null) => Promise<void>;
+  onCancel: () => void;
+}) {
+  const [text, setText] = useState(db.context_description ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      await onSave(db.id, text.trim() || null);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 bg-purple-50 border border-purple-200 rounded-2xl p-4">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-sm font-medium text-purple-800">
+          Context — {db.name}
+        </span>
+        <button onClick={onCancel} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      <p className="text-xs text-gray-500 mb-2">
+        Describe the database purpose, key tables, relationships, or any details that help the AI answer questions more accurately.
+      </p>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        rows={6}
+        maxLength={10000}
+        placeholder="e.g. This is the WooCommerce production database for our online store. Orders are stored in wp_posts with post_type='shop_order'. Customer info is in wp_usermeta..."
+        className="w-full text-sm border border-gray-300 rounded-lg p-3 resize-y focus:outline-none focus:ring-2 focus:ring-purple-400"
+      />
+      <div className="flex items-center justify-between mt-2">
+        <span className="text-xs text-gray-400">{text.length} / 10,000</span>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg transition-colors"
+          >
+            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : null}
+            {saving ? "Saving..." : "Save Context"}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

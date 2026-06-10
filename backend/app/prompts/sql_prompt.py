@@ -44,6 +44,7 @@ def build_sql_prompt(
     schema: str,
     dialect: str = "ansi",
     current_user_id: int | None = None,
+    db_context: str | None = None,
 ) -> str:
     """
     Build the full prompt sent to the Ollama model.
@@ -54,6 +55,8 @@ def build_sql_prompt(
         dialect: SQL dialect hint (postgresql, mysql, sqlite, etc.).
         current_user_id: The ID of the logged-in user, injected so the LLM
                          can resolve references like "my records" or "من".
+        db_context: Optional user-provided description of the database
+                    (purpose, key tables, business rules, etc.).
 
     Returns:
         Formatted prompt string.
@@ -76,6 +79,11 @@ def build_sql_prompt(
     if current_user_id is not None:
         user_context = f"\n## Current User:\nThe logged-in user's ID is: {current_user_id}\nUse this value directly when the question refers to 'me', 'my', 'من', 'مال من', etc.\n"
 
+    # Inject user-provided database context if available
+    db_context_block = ""
+    if db_context and db_context.strip():
+        db_context_block = f"\n## Database Context (provided by user):\n{db_context.strip()}\n"
+
     prompt = f"""You are ByteBudd, an expert SQL assistant. Your job is to convert natural language questions into safe, read-only SQL queries.
 
 ## Rules (CRITICAL - follow exactly):
@@ -89,7 +97,7 @@ def build_sql_prompt(
 
 ## Database Schema:
 {schema}
-{user_context}
+{db_context_block}{user_context}
 {platform_hints}{dialect_hints}
 ## User Question:
 {question}

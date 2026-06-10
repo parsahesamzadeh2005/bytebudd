@@ -110,6 +110,9 @@ export const dbApi = {
 
   getSchema: (id: number) =>
     apiFetch<{ schema: string }>(`/databases/${id}/schema`),
+
+  updateContext: (id: number, context: string | null) =>
+    apiFetch<DBConnection>(`/databases/${id}/context`, { method: "PATCH", body: JSON.stringify({ context_description: context }) }),
 };
 
 // ── Conversations API ─────────────────────────────────────────────────────
