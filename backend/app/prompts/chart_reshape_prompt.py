@@ -42,50 +42,66 @@ def build_chart_reshape_prompt(
 
     Args:
         columns: Column names from the query result.
-        rows: Full result rows (this function embeds only the first 5 as a sample).
+        rows: Full result rows (all rows are embedded; caller already capped at 200).
         target_chart_type: One of bar | bar-grouped | line | pie | scatter.
 
     Returns:
         A prompt string that instructs Ollama to return only a JSON object.
     """
-    sample = rows[:5]
-    sample_json = json.dumps(sample, default=str, separators=(",", ":"))
+    all_rows_json = json.dumps(rows, default=str, separators=(",", ":"))
     columns_json = json.dumps(columns)
     chart_requirements = _CHART_REQUIREMENTS.get(
         target_chart_type,
         "requires an appropriate column structure for the selected chart type",
     )
 
-    prompt = f"""You are a data transformation assistant. Your job is to reshape tabular data so it can be rendered as a specific chart type.
+    # Build concrete column examples so the model knows the exact key names
+    if len(columns) >= 2:
+        cat_col = columns[0]
+        val_col = columns[1]
+    else:
+        cat_col = "category"
+        val_col = "value"
 
-## Current data
+    # Build a two-row example using the real column names
+    example_rows = json.dumps(
+        [{cat_col: "A", val_col: 10}, {cat_col: "B", val_col: 20}],
+        separators=(",", ":"),
+    )
+    success_example = (
+        f'{{"success":true,"columns":["{cat_col}","{val_col}"],'
+        f'"rows":{example_rows},'
+        f'"chart_spec":{{"type":"{target_chart_type}",'
+        f'"category_key":"{cat_col}","value_keys":["{val_col}"],'
+        f'"title":"{val_col} by {cat_col}"}}}}'
+    )
+
+    prompt = f"""You are a data transformation assistant. Reshape the tabular data below so it can be rendered as a {target_chart_type} chart.
+
+## Input data
 Columns: {columns_json}
-Sample rows (first 5 of {len(rows)} total): {sample_json}
-Total rows: {len(rows)}
+Rows ({len(rows)} total): {all_rows_json}
 
 ## Target chart type: {target_chart_type}
 Requirements: {chart_requirements}
 
 ## Allowed transformations
-You may perform any of the following operations to make the data fit the target chart type:
-1. Row-to-column-series conversion (transpose / unpivot)
-2. Aggregation (SUM, COUNT, AVG) by a grouping column
-3. Field renaming (to make axis labels clearer)
+1. Aggregation (SUM, COUNT, AVG) grouped by a categorical column
+2. Unpivot / pivot / transpose
+3. Field renaming for clearer axis labels
 4. Field reordering
-5. Grouping / pivoting
 
-## Instructions
-1. Determine whether the current data can be reshaped into the target chart type.
-2. If YES: apply the minimal set of transformations, output the reshaped columns and ALL reshaped rows, and fill in the chart_spec fields.
-3. If NO: output an error message explaining why, and suggest a chart type that DOES work with the current data shape.
-4. Return ONLY a JSON object — no markdown, no code fences, no explanations before or after the JSON.
+## Rules
+- Return ONLY a raw JSON object. No markdown, no code fences, no prose.
+- On success: include ALL reshaped rows (not just a sample).
+- Use the exact column names you define in "columns" as the keys in every row object.
 
-## Output format when reshaping succeeds
-{{"success": true, "columns": ["col1", "col2"], "rows": [{{"col1": "...", "col2": 123}}], "chart_spec": {{"type": "{target_chart_type}", "category_key": "col1", "value_keys": ["col2"], "title": "col2 by col1"}}}}
+## Success format (example with your actual columns)
+{success_example}
 
-## Output format when reshaping is not possible
-{{"success": false, "error": "Explanation of why this chart type does not fit the data.", "suggested_chart_type": "bar"}}
+## Failure format
+{{"success":false,"error":"<reason>","suggested_chart_type":"<bar|line|pie|scatter>"}}
 
-JSON output:"""
+JSON:"""
 
     return prompt

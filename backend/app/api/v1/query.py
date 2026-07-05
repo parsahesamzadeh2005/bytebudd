@@ -190,6 +190,7 @@ async def chart_reshape(
     )
 
     # Call Ollama with an increased num_predict to accommodate full JSON output
+    # json_mode=True sets format:"json" so the model never wraps output in code fences
     try:
         raw = await call_ollama(
             host_url=host_url,
@@ -197,6 +198,7 @@ async def chart_reshape(
             prompt=prompt,
             timeout=ollama_client.timeout,
             num_predict=2048,
+            json_mode=True,
         )
     except OllamaError as e:
         logger.error("Ollama error during chart reshape: %s", e)
@@ -205,11 +207,21 @@ async def chart_reshape(
             error="AI service is unavailable. Check that Ollama is running and try again.",
         )
 
-    # Parse the LLM's JSON response
+    # Parse the LLM's JSON response.
+    # Strip markdown code fences if the model ignored format:"json"
+    cleaned = raw.strip()
+    if cleaned.startswith("```"):
+        # Remove opening fence (```json or ```)
+        cleaned = cleaned.split("\n", 1)[-1]
+        # Remove closing fence
+        if cleaned.endswith("```"):
+            cleaned = cleaned[: cleaned.rfind("```")]
+        cleaned = cleaned.strip()
+
     try:
-        parsed = json.loads(raw)
+        parsed = json.loads(cleaned)
     except json.JSONDecodeError:
-        logger.warning("Ollama returned non-JSON for chart reshape: %r", raw)
+        logger.warning("Ollama returned non-JSON for chart reshape: %r", cleaned)
         return ChartReshapeResponse(
             success=False,
             error=(

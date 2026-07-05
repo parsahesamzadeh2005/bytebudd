@@ -33,6 +33,7 @@ async def call_ollama(
     prompt: str,
     timeout: int,
     num_predict: int | None = None,
+    json_mode: bool = False,
 ) -> str:
     """
     Send a prompt to an Ollama server and return the generated text.
@@ -43,6 +44,8 @@ async def call_ollama(
     Args:
         num_predict: Override the token limit for this call. When None the
                      module-level default (512) is used.
+        json_mode: When True, sets ``format: "json"`` so Ollama forces the
+                   model to emit valid JSON and never wraps it in code fences.
     """
     options = dict(_GENERATION_OPTIONS)
     if num_predict is not None:
@@ -54,6 +57,8 @@ async def call_ollama(
         "stream": False,
         "options": options,
     }
+    if json_mode:
+        payload["format"] = "json"
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
