@@ -241,7 +241,7 @@ export default function NewConversationPage() {
             ) : (
               <>
                 {messages.map((msg) => (
-                  <MessageBubble key={msg.id} message={msg} />
+                  <MessageBubble key={msg.id} message={msg} conversationId={conversationIdRef.current ?? 0} />
                 ))}
                 <div ref={bottomRef} />
               </>

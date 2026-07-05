@@ -18,7 +18,10 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!isAuthenticated()) {
-      router.push("/login");
+      // Check if first-time setup is needed before sending to login
+      authApi.setupRequired()
+        .then(({ required }) => router.push(required ? "/setup" : "/login"))
+        .catch(() => router.push("/login"));
       return;
     }
     loadData();

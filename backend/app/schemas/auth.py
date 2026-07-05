@@ -14,6 +14,18 @@ class LoginRequest(BaseModel):
         return v.strip().lower()
 
 
+class SetupRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        return v
+
+
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
@@ -38,3 +50,19 @@ class UserUpdate(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[Literal["admin", "user"]] = None
     password: Optional[str] = None
+
+
+class RegistrationStatusOut(BaseModel):
+    allow_registration: bool
+
+
+class RegisterRequest(BaseModel):
+    email: EmailStr
+    password: str
+
+    @field_validator("password")
+    @classmethod
+    def password_min_length(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters.")
+        return v

@@ -92,7 +92,7 @@ class ChartErrorBoundary extends Component<
 // ResultPanel
 // ---------------------------------------------------------------------------
 
-export function ResultPanel({ columns, rows, rowCount }: ResultPanelProps) {
+export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultPanelProps) {
   // Auto-detect chart spec once per new result set
   const autoSpec: ChartSpec | null = useMemo(
     () => detectChartType(columns, rows),
@@ -179,7 +179,7 @@ export function ResultPanel({ columns, rows, rowCount }: ResultPanelProps) {
   const handleReshape = () => {
     if (reshapeStatus === "loading") return;
     setInstantSpec(null);        // clear instant override; reshape takes over
-    reshape(columns, rows, selectedChartType);
+    reshape(columns, rows, selectedChartType, conversationId);
   };
 
   // Switching to a suggested chart type from the error banner

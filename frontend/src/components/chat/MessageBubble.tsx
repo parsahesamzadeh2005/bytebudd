@@ -8,9 +8,10 @@ import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  conversationId: number;
 }
 
-export function MessageBubble({ message }: MessageBubbleProps) {
+export function MessageBubble({ message, conversationId }: MessageBubbleProps) {
   const isUser = message.role === "user";
   const isStreaming = message.isStreaming;
 
@@ -65,6 +66,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             columns={message.results.columns}
             rows={message.results.rows}
             rowCount={message.results.row_count}
+            conversationId={conversationId}
           />
         )}
       </div>

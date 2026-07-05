@@ -2,43 +2,57 @@
 
 import { useState, useEffect, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { authApi, setToken } from "@/lib/api";
-import { Database, Loader2 } from "lucide-react";
+import { Database, Loader2, ShieldCheck } from "lucide-react";
 
-export default function LoginPage() {
+export default function SetupPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [checking, setChecking] = useState(true);
 
-  // Redirect to /setup if no users exist yet; check if registration is open
+  // If setup is already done, redirect to login
   useEffect(() => {
-    Promise.all([authApi.setupRequired(), authApi.registrationOpen()])
-      .then(([setup, reg]) => {
-        if (setup.required) { router.replace("/setup"); return; }
-        setRegistrationOpen(reg.allow_registration);
+    authApi.setupRequired()
+      .then(({ required }) => {
+        if (!required) router.replace("/login");
+        else setChecking(false);
       })
-      .catch(() => {/* stay on login */});
+      .catch(() => setChecking(false));
   }, [router]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    setLoading(true);
 
+    if (password !== confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    setLoading(true);
     try {
-      const data = await authApi.login(email, password);
-      setToken(data.access_token);
+      // Create admin then log straight in
+      await authApi.setup(email, password);
+      const { access_token } = await authApi.login(email, password);
+      setToken(access_token);
       router.push("/");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Login failed";
-      setError(message);
+      setError(err instanceof Error ? err.message : "Setup failed. Please try again.");
     } finally {
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-blue-400" />
+      </div>
+    );
   }
 
   return (
@@ -55,32 +69,39 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
-          <h2 className="text-xl font-semibold text-gray-800 mb-6">Sign in to your account</h2>
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheck className="w-5 h-5 text-blue-600" />
+            <h2 className="text-xl font-semibold text-gray-800">Create admin account</h2>
+          </div>
+          <p className="text-sm text-gray-500 mb-6">
+            This is a one-time setup. The account you create here will be the administrator.
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email address
               </label>
               <input
-                type="text"
+                type="email"
                 required
+                autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-gray-900"
-                placeholder="your@email.com"
+                placeholder="you@example.com"
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Password
+                <span className="text-gray-400 font-normal ml-1">(min. 8 characters)</span>
               </label>
               <input
                 type="password"
                 required
+                minLength={8}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-gray-900"
@@ -88,14 +109,27 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Error message */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Confirm password
+              </label>
+              <input
+                type="password"
+                required
+                minLength={8}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition text-gray-900"
+                placeholder="••••••••"
+              />
+            </div>
+
             {error && (
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            {/* Submit button */}
             <button
               type="submit"
               disabled={loading}
@@ -104,22 +138,12 @@ export default function LoginPage() {
               {loading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Signing in...
+                  Creating account…
                 </>
               ) : (
-                "Sign in"
+                "Create admin account & sign in"
               )}
             </button>
-
-            {/* Register link — only shown when admin has enabled registration */}
-            {registrationOpen && (
-              <p className="text-center text-sm text-gray-500 pt-1">
-                Don&apos;t have an account?{" "}
-                <Link href="/register" className="text-blue-600 hover:underline font-medium">
-                  Sign up
-                </Link>
-              </p>
-            )}
           </form>
         </div>
 

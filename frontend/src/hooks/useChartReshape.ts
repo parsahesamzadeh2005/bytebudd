@@ -14,7 +14,8 @@ export interface UseChartReshapeReturn {
   reshape: (
     columns: string[],
     rows: Record<string, unknown>[],
-    targetChartType: ChartType
+    targetChartType: ChartType,
+    conversationId: number
   ) => Promise<void>;
   reshapeStatus: ReshapeStatus;
   reshapedSpec: ChartSpec | null;
@@ -75,7 +76,8 @@ export function useChartReshape(): UseChartReshapeReturn {
     async (
       columns: string[],
       rows: Record<string, unknown>[],
-      targetChartType: ChartType
+      targetChartType: ChartType,
+      conversationId: number
     ): Promise<void> => {
       setReshapeStatus("loading");
       setReshapeError(null);
@@ -94,6 +96,7 @@ export function useChartReshape(): UseChartReshapeReturn {
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
           },
           body: JSON.stringify({
+            conversation_id: conversationId,
             columns,
             rows: slicedRows,
             target_chart_type: targetChartType,

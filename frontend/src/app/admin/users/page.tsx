@@ -15,6 +15,7 @@ import {
   Loader2,
   AlertCircle,
   X,
+  UserPlus,
 } from "lucide-react";
 
 interface UserRow {
@@ -44,6 +45,10 @@ export default function AdminUsersPage() {
   const [busyId, setBusyId] = useState<number | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // Registration toggle
+  const [allowRegistration, setAllowRegistration] = useState(false);
+  const [registrationSaving, setRegistrationSaving] = useState(false);
+
   useEffect(() => {
     if (!isAuthenticated()) { router.push("/login"); return; }
     loadData();
@@ -53,15 +58,17 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError(null);
     try {
-      const [meData, userList, convs] = await Promise.all([
+      const [meData, userList, convs, regSetting] = await Promise.all([
         authApi.me() as Promise<User>,
         adminApi.listUsers(),
         conversationApi.list() as Promise<Conversation[]>,
+        adminApi.getRegistrationSetting(),
       ]);
       if (meData.role !== "admin") { router.push("/"); return; }
       setMe(meData);
       setUsers(userList);
       setConversations(convs);
+      setAllowRegistration(regSetting.allow_registration);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load users");
     } finally {
@@ -75,7 +82,7 @@ export default function AdminUsersPage() {
       const updated = await adminApi.updateUser(user.id, { is_active: !user.is_active });
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update user");
+      setError(err instanceof Error ? err.message : "Failed to update user");
     } finally {
       setBusyId(null);
     }
@@ -88,7 +95,7 @@ export default function AdminUsersPage() {
       const updated = await adminApi.updateUser(user.id, { role: newRole });
       setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to update role");
+      setError(err instanceof Error ? err.message : "Failed to update role");
     } finally {
       setBusyId(null);
     }
@@ -101,14 +108,25 @@ export default function AdminUsersPage() {
       await adminApi.deleteUser(user.id);
       setUsers((prev) => prev.filter((u) => u.id !== user.id));
     } catch (err) {
-      alert(err instanceof Error ? err.message : "Failed to delete user");
+      setError(err instanceof Error ? err.message : "Failed to delete user");
     } finally {
       setBusyId(null);
     }
   }
 
-  async function handleCreateUser(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleToggleRegistration() {
+    setRegistrationSaving(true);
+    try {
+      const updated = await adminApi.setRegistrationSetting(!allowRegistration);
+      setAllowRegistration(updated.allow_registration);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update setting");
+    } finally {
+      setRegistrationSaving(false);
+    }
+  }
+
+  async function handleCreateUser(e: React.FormEvent) {    e.preventDefault();
     setFormError("");
     setFormSaving(true);
     try {
@@ -259,6 +277,43 @@ export default function AdminUsersPage() {
               </form>
             </div>
           )}
+
+          {/* Registration toggle */}
+          <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-5 mb-6 flex items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 mt-0.5">
+                <UserPlus className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-gray-900">Public registration</p>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {allowRegistration
+                    ? "Anyone with the URL can create an account."
+                    : "Only admins can create new accounts."}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={handleToggleRegistration}
+              disabled={registrationSaving}
+              role="switch"
+              aria-checked={allowRegistration}
+              aria-label="Toggle public registration"
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1 disabled:opacity-50 ${
+                allowRegistration ? "bg-blue-600" : "bg-gray-200"
+              }`}
+            >
+              {registrationSaving ? (
+                <Loader2 className="w-3.5 h-3.5 text-white absolute left-1/2 -translate-x-1/2 animate-spin" />
+              ) : (
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    allowRegistration ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              )}
+            </button>
+          </div>
 
           {/* Users table */}
           <div className="bg-white border border-gray-200 rounded-2xl shadow-sm overflow-hidden">

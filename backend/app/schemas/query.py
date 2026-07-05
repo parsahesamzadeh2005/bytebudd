@@ -5,6 +5,7 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ChartReshapeRequest(BaseModel):
+    conversation_id: int
     columns: list[str] = Field(..., min_length=1)
     rows: list[dict[str, Any]] = Field(..., min_length=1)
     target_chart_type: Literal["bar", "bar-grouped", "line", "pie", "scatter"]

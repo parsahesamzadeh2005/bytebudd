@@ -5,5 +5,6 @@ from app.models.conversation import Conversation
 from app.models.message import Message
 from app.models.audit_log import AuditLog
 from app.models.ollama_profile import OllamaProfile
+from app.models.app_settings import AppSettings
 
-__all__ = ["User", "DBConnection", "Conversation", "Message", "AuditLog", "OllamaProfile"]
+__all__ = ["User", "DBConnection", "Conversation", "Message", "AuditLog", "OllamaProfile", "AppSettings"]

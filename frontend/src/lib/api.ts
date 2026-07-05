@@ -79,6 +79,24 @@ async function apiFetch<T>(
 // ── Auth API ──────────────────────────────────────────────────────────────
 
 export const authApi = {
+  setupRequired: () =>
+    apiFetch<{ required: boolean }>("/auth/setup-required"),
+
+  setup: (email: string, password: string) =>
+    apiFetch<{ id: number; email: string; role: string; is_active: boolean }>("/auth/setup", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
+  registrationOpen: () =>
+    apiFetch<{ allow_registration: boolean }>("/auth/registration-open"),
+
+  registerPublic: (email: string, password: string) =>
+    apiFetch<{ id: number; email: string; role: string; is_active: boolean }>("/auth/register-public", {
+      method: "POST",
+      body: JSON.stringify({ email, password }),
+    }),
+
   login: (email: string, password: string) =>
     apiFetch<{ access_token: string; token_type: string }>("/auth/login", {
       method: "POST",
@@ -245,6 +263,15 @@ export const adminApi = {
 
   deleteUser: (id: number) =>
     apiFetch<void>(`/auth/users/${id}`, { method: "DELETE" }),
+
+  getRegistrationSetting: () =>
+    apiFetch<{ allow_registration: boolean }>("/auth/registration-open"),
+
+  setRegistrationSetting: (allow: boolean) =>
+    apiFetch<{ allow_registration: boolean }>("/auth/settings/registration", {
+      method: "PATCH",
+      body: JSON.stringify({ allow_registration: allow }),
+    }),
 };
 
 // ── Ollama status API ─────────────────────────────────────────────────────

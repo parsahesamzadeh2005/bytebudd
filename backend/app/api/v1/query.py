@@ -22,6 +22,7 @@ from app.models.conversation import Conversation
 from app.schemas.conversation import QueryRequest
 from app.schemas.query import ChartReshapeRequest, ChartReshapeResponse, ChartSpecOut
 from app.services.query_pipeline import run_query_pipeline
+from app.services.ollama_profile_service import resolve_ollama_config
 from app.prompts.chart_reshape_prompt import build_chart_reshape_prompt
 from app.core.config import settings
 
@@ -140,16 +141,48 @@ async def pull_model(_user: User = Depends(get_current_user)):
 @router.post("/chart-reshape", response_model=ChartReshapeResponse)
 async def chart_reshape(
     payload: ChartReshapeRequest,
-    _user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ChartReshapeResponse:
     """
     Accept the current query result and a target chart type, call Ollama to
     reshape / transform the data, and return the transformed dataset with a
     ready-to-use chart spec.
 
+    Uses the Ollama profile stored on the conversation (falls back to the
+    global env-var config if none is set).
+
     The 200-row limit is enforced by the request schema's model_validator.
     Authentication requires a valid JWT Bearer token.
     """
+    # Load the conversation to get its saved Ollama profile
+    conv_result = await db.execute(
+        select(Conversation).where(
+            Conversation.id == payload.conversation_id,
+            Conversation.user_id == current_user.id,
+        )
+    )
+    conversation = conv_result.scalar_one_or_none()
+    if not conversation:
+        return ChartReshapeResponse(
+            success=False,
+            error="Conversation not found.",
+        )
+
+    # Resolve which Ollama host + model to use (profile → env fallback)
+    try:
+        host_url, model = await resolve_ollama_config(
+            db,
+            profile_id=conversation.ollama_profile_id,
+            model_name=conversation.ollama_model_name,
+        )
+    except ValueError as e:
+        logger.error("Cannot resolve Ollama config for chart reshape: %s", e)
+        return ChartReshapeResponse(
+            success=False,
+            error="No Ollama profile is configured for this conversation and no fallback is available.",
+        )
+
     prompt = build_chart_reshape_prompt(
         columns=payload.columns,
         rows=payload.rows,
@@ -159,8 +192,8 @@ async def chart_reshape(
     # Call Ollama with an increased num_predict to accommodate full JSON output
     try:
         raw = await call_ollama(
-            host_url=ollama_client.base_url,
-            model=ollama_client.model,
+            host_url=host_url,
+            model=model,
             prompt=prompt,
             timeout=ollama_client.timeout,
             num_predict=2048,
