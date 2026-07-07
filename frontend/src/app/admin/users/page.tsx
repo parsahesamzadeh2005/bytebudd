@@ -62,7 +62,7 @@ export default function AdminUsersPage() {
         authApi.me() as Promise<User>,
         adminApi.listUsers(),
         conversationApi.list() as Promise<Conversation[]>,
-        adminApi.getRegistrationSetting(),
+        authApi.registrationOpen(),
       ]);
       if (meData.role !== "admin") { router.push("/"); return; }
       setMe(meData);

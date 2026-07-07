@@ -104,6 +104,9 @@ export const authApi = {
     }),
 
   me: () => apiFetch<{ id: number; email: string; role: string; is_active: boolean }>("/auth/me"),
+
+  refresh: () =>
+    apiFetch<{ access_token: string; token_type: string }>("/auth/refresh", { method: "POST" }),
 };
 
 // ── Database Connection API ───────────────────────────────────────────────
@@ -264,9 +267,6 @@ export const adminApi = {
   deleteUser: (id: number) =>
     apiFetch<void>(`/auth/users/${id}`, { method: "DELETE" }),
 
-  getRegistrationSetting: () =>
-    apiFetch<{ allow_registration: boolean }>("/auth/registration-open"),
-
   setRegistrationSetting: (allow: boolean) =>
     apiFetch<{ allow_registration: boolean }>("/auth/settings/registration", {
       method: "PATCH",
@@ -351,4 +351,46 @@ export const ollamaProfileApi = {
       `/ollama-profiles/${id}/check-availability`,
       { method: "POST" }
     ),
+};
+
+// ── Chart Reshape API ─────────────────────────────────────────────────────
+
+export interface ChartSpecOut {
+  type: string;
+  category_key?: string | null;
+  value_keys: string[];
+  title: string;
+}
+
+export interface ChartReshapeSuccessResponse {
+  success: true;
+  columns: string[];
+  rows: Record<string, unknown>[];
+  chart_spec: ChartSpecOut;
+}
+
+export interface ChartReshapeErrorResponse {
+  success: false;
+  error: string;
+  suggested_chart_type?: string | null;
+}
+
+export type ChartReshapeResponse = ChartReshapeSuccessResponse | ChartReshapeErrorResponse;
+
+export const queryApi = {
+  /**
+   * Ask Ollama to reshape query result data for a specific chart type.
+   * Uses the shared apiFetch wrapper so 401 auto-redirects and error
+   * normalisation apply consistently.
+   */
+  chartReshape: (payload: {
+    conversation_id: number;
+    columns: string[];
+    rows: Record<string, unknown>[];
+    target_chart_type: string;
+  }): Promise<ChartReshapeResponse> =>
+    apiFetch<ChartReshapeResponse>("/query/chart-reshape", {
+      method: "POST",
+      body: JSON.stringify(payload),
+    }),
 };
