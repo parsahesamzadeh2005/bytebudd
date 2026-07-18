@@ -1,162 +1,110 @@
 /**
- * chartDetector.ts
+ * chartDetector.ts — pure, synchronous chart-type detection.
  *
- * Pure, synchronous chart-type detection logic.
- * Analyses column metadata and row values to determine whether query results
- * can be rendered as a chart, and if so, which type.
- *
- * NOTE: detectChartType() never returns "line" or "pie" — those are
- * exclusively produced by the Ollama reshape path (useChartReshape).
+ * Detection priority (first match wins):
+ *   1 cat + 1 num, low-cardinality (≤8)          → "pie"
+ *   1 cat + 1 num, time-like column name          → "line"
+ *   1 cat + 1 num                                  → "bar"
+ *   1 cat + 2+ num                                 → "bar-grouped"
+ *   0 cat + 2 num                                  → "scatter"
+ *   anything else                                  → null
  */
 
-/** All supported chart types (includes line/pie for reshape path) */
-export type ChartType = "bar" | "bar-grouped" | "line" | "pie" | "scatter";
-
-/** Bar orientation */
+export type ChartType = "bar" | "bar-grouped" | "bar-stacked" | "line" | "area" | "pie" | "scatter";
 export type BarOrientation = "horizontal" | "vertical";
 
-/** Describes a renderable chart */
 export interface ChartSpec {
   type: ChartType;
-  /** Categorical column name — used as X-axis category (bar/bar-grouped/line/pie) */
   categoryKey?: string;
-  /** Numeric column name(s) — Y-axis series */
   valueKeys: string[];
-  /** Bar orientation (bar/bar-grouped only) */
   orientation?: BarOrientation;
-  /** Human-readable title e.g. "revenue by product" */
   title: string;
 }
 
 // ---------------------------------------------------------------------------
-// Internal helpers
+// Helpers
 // ---------------------------------------------------------------------------
 
-/**
- * Returns true when ≥ 80 % of non-null values in the column are finite numbers.
- * All-null columns are treated as categorical (returns false).
- */
-export function isNumericColumn(
-  col: string,
-  rows: Record<string, unknown>[]
-): boolean {
-  const nonNull = rows.filter(
-    (r) => r[col] !== null && r[col] !== undefined
-  );
-  if (nonNull.length === 0) return false;
+const fmt = (s: string) => s.toLowerCase().replace(/_/g, " ");
 
-  let numericCount = 0;
-  for (const row of nonNull) {
-    const value = Number(row[col]);
-    if (isFinite(value)) numericCount++;
-  }
-
-  return numericCount / nonNull.length >= 0.8;
+/** ≥80% of non-null values are finite numbers. */
+export function isNumericColumn(col: string, rows: Record<string, unknown>[]): boolean {
+  const nonNull = rows.filter((r) => r[col] != null);
+  if (!nonNull.length) return false;
+  return nonNull.filter((r) => isFinite(Number(r[col]))).length / nonNull.length >= 0.8;
 }
 
-/**
- * Decides bar orientation based on label count and average label length.
- * Returns "horizontal" when rows > 8 OR average label > 8 chars.
- */
-export function computeOrientation(
-  catCol: string,
-  rows: Record<string, unknown>[]
-): BarOrientation {
+/** Horizontal when >8 rows OR avg label > 8 chars. */
+export function computeOrientation(catCol: string, rows: Record<string, unknown>[]): BarOrientation {
   const labels = rows.map((r) => String(r[catCol] ?? ""));
-
   if (labels.length > 8) return "horizontal";
-
-  const avgLen =
-    labels.reduce((sum, l) => sum + l.length, 0) / labels.length;
-
-  return avgLen > 8 ? "horizontal" : "vertical";
+  return labels.reduce((s, l) => s + l.length, 0) / labels.length > 8 ? "horizontal" : "vertical";
 }
 
-/**
- * Builds a human-readable chart title.
- * For bar/bar-grouped: "<value> by <category>"
- * For scatter: "<a> vs <b>"  (called with (colA, colB))
- * Labels are lower-cased with underscores replaced by spaces.
- */
-export function buildTitle(valueLabel: string, categoryLabel: string): string {
-  const fmt = (s: string) => s.toLowerCase().replace(/_/g, " ");
-  return `${fmt(valueLabel)} by ${fmt(categoryLabel)}`;
+/** Column name looks like a time/sequence axis. */
+const TIME_PATTERN = /date|time|month|year|week|day|period|quarter|hour|minute|ts|timestamp/i;
+export function isTimeLike(col: string): boolean {
+  return TIME_PATTERN.test(col);
 }
 
-export function buildScatterTitle(colA: string, colB: string): string {
-  const fmt = (s: string) => s.toLowerCase().replace(/_/g, " ");
-  return `${fmt(colA)} vs ${fmt(colB)}`;
+export function buildTitle(value: string, category: string) {
+  return `${fmt(value)} by ${fmt(category)}`;
 }
 
 // ---------------------------------------------------------------------------
 // Main export
 // ---------------------------------------------------------------------------
 
-/**
- * Analyses columns and rows and returns a ChartSpec if the data is
- * visualisable, or null if the table-only fallback should be used.
- *
- * Detection priority (first match wins):
- *   1 categorical + 1 numeric      → "bar"
- *   1 categorical + 2+ numeric     → "bar-grouped"
- *   0 categorical + 2 numeric      → "scatter"
- *   anything else                  → null
- *
- * This function NEVER returns type "line" or "pie".
- */
 export function detectChartType(
   columns: string[],
   rows: Record<string, unknown>[]
 ): ChartSpec | null {
-  if (columns.length === 0 || rows.length === 0) return null;
+  if (!columns.length || !rows.length) return null;
 
-  // Classify each column
-  const numericCols: string[] = [];
-  const categoricalCols: string[] = [];
+  const numeric = columns.filter((c) => isNumericColumn(c, rows));
+  const categorical = columns.filter((c) => !isNumericColumn(c, rows));
 
-  for (const col of columns) {
-    if (isNumericColumn(col, rows)) {
-      numericCols.push(col);
-    } else {
-      categoricalCols.push(col);
+  // 1 categorical, 1 numeric
+  if (categorical.length === 1 && numeric.length === 1) {
+    const [cat, val] = [categorical[0], numeric[0]];
+    const uniq = new Set(rows.map((r) => r[cat])).size;
+
+    // pie: low-cardinality (≤8 unique values), not time-like
+    if (uniq <= 8 && !isTimeLike(cat)) {
+      return { type: "pie", categoryKey: cat, valueKeys: [val], title: buildTitle(val, cat) };
     }
-  }
-
-  // Rule 1: 1 categorical + 1 numeric → bar
-  if (categoricalCols.length === 1 && numericCols.length === 1) {
-    const catCol = categoricalCols[0];
-    const valCol = numericCols[0];
+    // line: column name looks like a time/ordered series
+    if (isTimeLike(cat)) {
+      return { type: "line", categoryKey: cat, valueKeys: [val], title: buildTitle(val, cat) };
+    }
+    // default: bar
     return {
       type: "bar",
-      categoryKey: catCol,
-      valueKeys: [valCol],
-      orientation: computeOrientation(catCol, rows),
-      title: buildTitle(valCol, catCol),
+      categoryKey: cat,
+      valueKeys: [val],
+      orientation: computeOrientation(cat, rows),
+      title: buildTitle(val, cat),
     };
   }
 
-  // Rule 2: 1 categorical + 2+ numeric → bar-grouped
-  if (categoricalCols.length === 1 && numericCols.length >= 2) {
-    const catCol = categoricalCols[0];
-    const joinedLabel = numericCols
-      .map((c) => c.toLowerCase().replace(/_/g, " "))
-      .join(" & ");
-    const catLabel = catCol.toLowerCase().replace(/_/g, " ");
+  // 1 categorical, 2+ numeric → bar-grouped
+  if (categorical.length === 1 && numeric.length >= 2) {
+    const cat = categorical[0];
     return {
       type: "bar-grouped",
-      categoryKey: catCol,
-      valueKeys: numericCols,
-      orientation: computeOrientation(catCol, rows),
-      title: `${joinedLabel} by ${catLabel}`,
+      categoryKey: cat,
+      valueKeys: numeric,
+      orientation: computeOrientation(cat, rows),
+      title: `${numeric.map(fmt).join(" & ")} by ${fmt(cat)}`,
     };
   }
 
-  // Rule 3: 0 categorical + exactly 2 numeric → scatter
-  if (categoricalCols.length === 0 && numericCols.length === 2) {
+  // 0 categorical, exactly 2 numeric → scatter
+  if (!categorical.length && numeric.length === 2) {
     return {
       type: "scatter",
-      valueKeys: numericCols,
-      title: buildScatterTitle(numericCols[0], numericCols[1]),
+      valueKeys: numeric,
+      title: `${fmt(numeric[0])} vs ${fmt(numeric[1])}`,
     };
   }
 

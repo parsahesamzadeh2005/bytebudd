@@ -362,10 +362,9 @@ export interface ChartSpecOut {
   title: string;
 }
 
+// Spec-only response — the frontend applies it to the full local dataset.
 export interface ChartReshapeSuccessResponse {
   success: true;
-  columns: string[];
-  rows: Record<string, unknown>[];
   chart_spec: ChartSpecOut;
 }
 
@@ -378,11 +377,6 @@ export interface ChartReshapeErrorResponse {
 export type ChartReshapeResponse = ChartReshapeSuccessResponse | ChartReshapeErrorResponse;
 
 export const queryApi = {
-  /**
-   * Ask Ollama to reshape query result data for a specific chart type.
-   * Uses the shared apiFetch wrapper so 401 auto-redirects and error
-   * normalisation apply consistently.
-   */
   chartReshape: (payload: {
     conversation_id: number;
     columns: string[];

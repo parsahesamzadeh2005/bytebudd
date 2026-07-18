@@ -23,37 +23,22 @@ interface ResultPanelProps {
   columns: string[];
   rows: Record<string, unknown>[];
   rowCount: number;
+  conversationId: number;
 }
 
 type ActiveView = "chart" | "table";
 
-// The selector only exposes the 4 user-facing types (no bar-grouped in selector)
-const SELECTOR_TYPES: ChartType[] = ["bar", "line", "pie", "scatter"];
+// All user-facing selector types (bar-grouped/bar-stacked not in selector — picked via AI)
+const SELECTOR_TYPES: ChartType[] = ["bar", "line", "area", "pie", "scatter", "bar-stacked"];
 
-const MAX_RESHAPE_ROWS = 200;
+// Types the auto-detector can produce — renderable instantly without AI
+const INSTANT_TYPES = new Set<ChartType>(["bar", "bar-grouped", "line", "pie", "scatter"]);
 
-// Types that can be rendered immediately without AI reshaping.
-// bar-grouped auto-detection maps to "bar" in the selector.
-const INSTANT_TYPES = new Set<ChartType>(["bar", "scatter"]);
-
-/**
- * Build a renderable ChartSpec for an instant switch (bar or scatter),
- * re-using the auto-detected spec when the type matches, or deriving a
- * minimal compatible spec from it.
- */
-function buildInstantSpec(
-  type: ChartType,
-  autoSpec: ChartSpec | null
-): ChartSpec | null {
+/** Return autoSpec when it already matches the selected type (including grouped→bar alias). */
+function buildInstantSpec(type: ChartType, autoSpec: ChartSpec | null): ChartSpec | null {
   if (!autoSpec) return null;
-
-  // bar selector covers both "bar" and "bar-grouped" auto-detected specs
-  if (type === "bar" && (autoSpec.type === "bar" || autoSpec.type === "bar-grouped")) {
-    return autoSpec;
-  }
-  if (type === "scatter" && autoSpec.type === "scatter") {
-    return autoSpec;
-  }
+  if (type === "bar" && (autoSpec.type === "bar" || autoSpec.type === "bar-grouped")) return autoSpec;
+  if (type === autoSpec.type) return autoSpec;
   return null;
 }
 
@@ -104,12 +89,10 @@ export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultP
     autoSpec ? "chart" : "table"
   );
 
-  // Chart-type selector: default to auto-detected type (bar-grouped → bar)
+  // Default selector type mirrors auto-detected type (bar-grouped → bar in selector)
   const defaultSelectorType: ChartType =
     autoSpec
-      ? autoSpec.type === "bar-grouped"
-        ? "bar"
-        : (autoSpec.type as ChartType)
+      ? autoSpec.type === "bar-grouped" ? "bar" : autoSpec.type
       : "bar";
 
   const [selectedChartType, setSelectedChartType] =
@@ -123,26 +106,14 @@ export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultP
     reshape,
     reshapeStatus,
     reshapedSpec,
-    reshapedRows,
     reshapeError,
     suggestedChartType,
     reset: resetReshape,
   } = useChartReshape();
 
-  // ---------------------------------------------------------------------------
-  // Active chart spec resolution:
-  //   1. instantSpec  — user clicked bar/scatter selector (no AI)
-  //   2. reshapedSpec — successful AI reshape
-  //   3. autoSpec     — fallback from auto-detection
-  // ---------------------------------------------------------------------------
+  // Active spec: instantSpec > reshapedSpec > autoSpec
   const activeSpec: ChartSpec | null =
-    instantSpec ??
-    (reshapeStatus === "success" && reshapedSpec ? reshapedSpec : autoSpec);
-
-  const activeChartRows =
-    reshapeStatus === "success" && reshapedRows.length > 0 && !instantSpec
-      ? reshapedRows
-      : rows;
+    instantSpec ?? (reshapeStatus === "success" && reshapedSpec ? reshapedSpec : autoSpec);
 
   // Whether the toggle should be visible
   const showToggle = activeSpec !== null || reshapeStatus === "success";
@@ -195,12 +166,8 @@ export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultP
     }
   }, [reshapeStatus, reshapedSpec]);
 
-  const rowsExceedLimit = rows.length > MAX_RESHAPE_ROWS;
-
-  // Does the selected type need the AI button to render?
-  const needsReshape =
-    !INSTANT_TYPES.has(selectedChartType) ||
-    buildInstantSpec(selectedChartType, autoSpec) === null;
+  // Does the selected type need the AI reshape button?
+  const needsReshape = buildInstantSpec(selectedChartType, autoSpec) === null;
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -261,13 +228,6 @@ export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultP
           )}
           Prepare for Chart
         </button>
-
-        {/* Row-limit notice */}
-        {rowsExceedLimit && (
-          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-            Only first {MAX_RESHAPE_ROWS} rows sent to AI
-          </span>
-        )}
 
         {/* Spacer */}
         <div className="flex-1" />
@@ -352,7 +312,7 @@ export function ResultPanel({ columns, rows, rowCount, conversationId }: ResultP
       {/* ── Content ──────────────────────────────────────────────────────── */}
       {activeView === "chart" && activeSpec ? (
         <ChartErrorBoundary onError={handleChartError}>
-          <ChartView chartSpec={activeSpec} rows={activeChartRows} />
+          <ChartView chartSpec={activeSpec} rows={rows} />
         </ChartErrorBoundary>
       ) : (
         <DataGrid columns={columns} rows={rows} rowCount={rowCount} />
